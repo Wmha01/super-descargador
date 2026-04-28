@@ -78,7 +78,7 @@ def inicio():
                 
             if download_url:
                 if tipo == 'imagen': download_url = miniatura
-                mensaje = f'✨ ¡Listo! <br><br> <a href="{download_url}" target="_blank" class="btn-descarga">Click para Descargar</a>'
+                mensaje = f'✨ ¡Listo! <br><br> <a href="{download_url}" download="video.mp4" class="btn-descarga">Click para Descargar</a>'
             else:
                 mensaje = "⚠️ YouTube bloqueó la petición. Intenta con otro enlace."
         except Exception as e:
