@@ -1,5 +1,5 @@
-# 1. Usamos una computadora base con Python ligero
-FROM python:3.9-slim
+# 1. Usamos una computadora base con Python moderno
+FROM python:3.11-slim
 
 # 2. Instalamos FFmpeg y Node.js en el sistema Linux
 RUN apt-get update && apt-get install -y ffmpeg nodejs
