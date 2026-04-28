@@ -116,5 +116,7 @@ def inicio():
     # 3. Enviamos los datos a la página web
     return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura, titulo_video=titulo)
 
+import os
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    puerto = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=puerto)
