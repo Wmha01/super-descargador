@@ -157,16 +157,24 @@ def inicio():
         }
         
         try:
+            # Plan A: Intentar con la calidad que pidió el usuario
             with yt_dlp.YoutubeDL(opciones) as ydl:
                 info = ydl.extract_info(url_original, download=False)
         except Exception:
-            opciones_sup = opciones.copy()
+            # Plan B: ¡ESTA ES LA CORRECCIÓN! Le decimos que traiga CUALQUIER formato que exista.
+            opciones_sup = {
+                'quiet': True,
+                'format': 'best/bestvideo+bestaudio/b/all', 
+                'skip_download': True,
+                'nocheckcertificate': True,
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
             try:
                 with yt_dlp.YoutubeDL(opciones_sup) as ydl:
                     info = ydl.extract_info(url_original, download=False)
             except Exception as e2:
                 error_msg = str(e2)
-                mensaje = f"⚠️ Error: {error_msg[:100]}..."
+                mensaje = f"⚠️ Error definitivo: {error_msg[:100]}..."
                 return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje)
 
         if info:
@@ -176,11 +184,10 @@ def inicio():
             d_url = info.get('url')
             modo_descarga = 'directo'
             
-            # Si el enlace por defecto es una lista de pedacitos (m3u8), activamos Modo Servidor
+            # Si el enlace es HLS (.m3u8), lo mandamos al servidor para que una los pedazos
             if d_url and ('.m3u8' in d_url or 'manifest' in d_url):
                 modo_descarga = 'servidor'
             
-            # Intentamos buscar un MP4 directo en los formatos ocultos para ahorrar proceso
             if not d_url or modo_descarga == 'servidor':
                 mp4_encontrado = False
                 if 'formats' in info:
@@ -193,10 +200,10 @@ def inicio():
                                 mp4_encontrado = True
                                 break
                 
-                # Si falló la búsqueda, no nos rendimos: obligamos a usar el Modo Servidor con el link original
+                # Si todo falla, Modo Servidor al rescate
                 if not mp4_encontrado:
                     modo_descarga = 'servidor'
-                    d_url = url_original # Le damos a yt-dlp el link de Pinterest
+                    d_url = url_original 
                     
             miniatura = info.get('thumbnail')
             titulo_v = info.get('title', 'Video_Descargado')
@@ -209,7 +216,6 @@ def inicio():
                 safe_title = urllib.parse.quote(titulo_v, safe='')
                 ext = 'jpg' if calidad == 'imagen' else ('mp3' if calidad == 'audio' else 'mp4')
                 
-                # Le decimos al botón qué modo usar
                 mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={safe_url}&titulo={safe_title}&ext={ext}&modo={modo_descarga}" class="btn-descarga">Descargar Ahora</a>'
             else:
                 mensaje = "⚠️ Fallo crítico al procesar el archivo."
@@ -231,9 +237,6 @@ def proceso_descarga():
         
     nombre_final = f"{titulo_limpio}.{ext}"
     
-    # ----------------------------------------------------
-    # CAMINO 1: TÚNEL DIRECTO (Para X, Facebook, etc.)
-    # ----------------------------------------------------
     if modo == 'directo':
         h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         r = requests.get(video_url, stream=True, headers=h)
@@ -247,15 +250,11 @@ def proceso_descarga():
             "Content-Type": r.headers.get('Content-Type', 'application/octet-stream')
         })
         
-    # ----------------------------------------------------
-    # CAMINO 2: MODO SERVIDOR (Para Pinterest / HLS)
-    # ----------------------------------------------------
     else:
-        # 1. Preparamos una carpeta temporal en el servidor
+        # MODO SERVIDOR ACTIVO (Une los fragmentos con FFmpeg en el servidor)
         temp_dir = tempfile.gettempdir()
         temp_filepath = os.path.join(temp_dir, f"{titulo_limpio}_{os.urandom(4).hex()}.{ext}")
         
-        # 2. Obligamos al servidor a descargar y unir los pedacitos
         opciones_descarga = {
             'quiet': True,
             'format': 'best',
@@ -265,26 +264,17 @@ def proceso_descarga():
         
         try:
             with yt_dlp.YoutubeDL(opciones_descarga) as ydl:
-                # Descarga el video REAL al disco temporal de Render
                 ydl.download([video_url])
                 
-            # 3. Función mágica: Lee el archivo para enviártelo y luego se autodestruye
             def generar_y_borrar():
                 try:
                     with open(temp_filepath, 'rb') as f:
                         while chunk := f.read(4096):
                             yield chunk
                 finally:
-                    # Cuando la descarga termina, borramos la evidencia
                     if os.path.exists(temp_filepath):
                         os.remove(temp_filepath)
                         
             return Response(stream_with_context(generar_y_borrar()), headers={
                 "Content-Disposition": f'attachment; filename="{nombre_final}"',
-                "Content-Type": "video/mp4" if ext == 'mp4' else "application/octet-stream"
-            })
-        except Exception as e:
-            return f"Hubo un error al unir los pedazos en el servidor: {str(e)}", 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+                "Content-Type": "video/mp4" if ext == 'mp4' else "application/
