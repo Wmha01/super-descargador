@@ -54,7 +54,6 @@ def inicio():
     miniatura = None
     if request.method == 'POST':
         url = request.form['enlace']
-        tipo = request.form['tipo_descarga']
         
         opciones = {
             'quiet': True,
@@ -70,8 +69,8 @@ def inicio():
                 miniatura = info.get('thumbnail', None)
                 
             if d_url:
-                # El secreto: Enviamos la URL a nuestra propia ruta /bypass
-                mensaje = f'✨ ¡Listo! <br><br> <a href="/bypass?url={d_url}" class="btn-descarga">Descargar Ahora</a>'
+                # AQUÍ ESTÁ EL CAMBIO: Ahora coincide con la ruta /descargar
+                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={d_url}" class="btn-descarga">Descargar Ahora</a>'
             else:
                 mensaje = "⚠️ No se encontró un enlace compatible."
         except:
@@ -79,15 +78,15 @@ def inicio():
 
     return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura)
 
-@app.route('/bypass')
-def bypass():
+# ESTA RUTA AHORA SE LLAMA /descargar PARA QUE EL NAVEGADOR LA ENCUENTRE
+@app.route('/descargar')
+def proceso_descarga():
     video_url = request.args.get('url')
-    # Añadimos cabeceras de "identidad falsa" para engañar al servidor del video
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://x.com/'
     }
     
+    # El servidor de Render hace la petición y te pasa los datos a ti
     r = requests.get(video_url, stream=True, headers=headers)
     
     def stream():
