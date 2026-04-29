@@ -6,7 +6,12 @@ import tempfile
 from flask import Flask, render_template, request, Response, stream_with_context, jsonify
 import yt_dlp
 
-app = Flask(__name__)
+# --- FIX DEL ERROR 500 (RUTAS ABSOLUTAS) ---
+# Le damos a Flask la ubicación matemática exacta de la carpeta 'templates'
+directorio_base = os.path.abspath(os.path.dirname(__file__))
+directorio_templates = os.path.join(directorio_base, 'templates')
+
+app = Flask(__name__, template_folder=directorio_templates)
 
 # CONFIGURACIÓN Y LÍMITES
 LIMITE_DURACION = 1200  
@@ -14,7 +19,6 @@ LIMITE_PESO_MB = 150
 
 @app.route('/')
 def index():
-    # Flask busca automáticamente en la carpeta "templates"
     return render_template('index.html')
 
 @app.route('/procesar', methods=['POST'])
