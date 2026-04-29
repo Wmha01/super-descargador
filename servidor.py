@@ -3,15 +3,10 @@ import requests
 import urllib.parse
 import re
 import tempfile
-from flask import Flask, render_template, request, Response, stream_with_context, jsonify
+from flask import Flask, render_template_string, request, Response, stream_with_context, jsonify
 import yt_dlp
 
-# --- FIX DEL ERROR 500 (RUTAS ABSOLUTAS) ---
-# Le damos a Flask la ubicación matemática exacta de la carpeta 'templates'
-directorio_base = os.path.abspath(os.path.dirname(__file__))
-directorio_templates = os.path.join(directorio_base, 'templates')
-
-app = Flask(__name__, template_folder=directorio_templates)
+app = Flask(__name__)
 
 # CONFIGURACIÓN Y LÍMITES
 LIMITE_DURACION = 1200  
@@ -19,7 +14,24 @@ LIMITE_PESO_MB = 150
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # MODO DE FUERZA BRUTA: Leemos el archivo saltándonos el buscador de Flask
+    ruta_base = os.path.dirname(os.path.abspath(__file__))
+    ruta_html = os.path.join(ruta_base, 'templates', 'index.html')
+    
+    try:
+        with open(ruta_html, 'r', encoding='utf-8') as archivo:
+            contenido_html = archivo.read()
+        return render_template_string(contenido_html)
+    except Exception as e:
+        # Si el archivo misteriosamente no está, te muestro qué archivos SÍ existen
+        archivos_visibles = str(os.listdir(ruta_base))
+        return f"""
+        <div style="font-family: sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #dc3545;">❌ El servidor no encuentra tu diseño</h2>
+            <p><strong>Buscó exactamente en:</strong> {ruta_html}</p>
+            <p><strong>Archivos que el servidor SÍ puede ver ahora mismo:</strong><br> {archivos_visibles}</p>
+        </div>
+        """
 
 @app.route('/procesar', methods=['POST'])
 def procesar_enlace():
