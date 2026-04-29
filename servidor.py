@@ -1,109 +1,186 @@
 import os
-import yt_dlp
+import tempfile
+# Para el historial, no necesitamos nuevas librerías en python, solo JS
 import requests
 from flask import Flask, render_template_string, request, Response, stream_with_context
 
 app = Flask(__name__)
 
-# --- DISEÑO "PRO" CON MODO OSCURO E HISTORIAL ---
+# --- NUEVO DISEÑO PROFESIONAL "PDP" ---
 PAGINA_WEB = """
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Súper Descargador Pro</title>
+    <title>PDP - Descarga Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        /* Variables de colores para los temas */
         :root {
-            --bg: #ffffff; --text: #111; --box: #f8f9fa; --border: #e5e5e5; --accent: #007bff;
+            --bg-body: #f4f7f6;
+            --bg-card: #ffffff;
+            --text-main: #1a1a1a;
+            --text-secondary: #6c757d;
+            --border-color: #e9ecef;
+            --accent: #28a745;
+            --btn-bg: #1a1a1a;
+            --btn-text: #ffffff;
+            --box-shadow: 0 10px 30px rgba(0,0,0,0.05);
         }
         body.dark-mode {
-            --bg: #121212; --text: #e0e0e0; --box: #1e1e1e; --border: #333; --accent: #375a7f;
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border-color: #333333;
+            --btn-bg: #f8f9fa;
+            --btn-text: #1a1a1a;
+            --box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
-        .contenedor { max-width: 500px; margin: 40px auto; background: var(--box); padding: 30px; border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        h1 { text-align: center; font-size: 28px; margin-bottom: 20px; letter-spacing: -1px; }
+
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 20px; transition: background-color 0.3s, color 0.3s; display: flex; justify-content: center; min-height: 100vh; align-items: flex-start; }
         
-        .dark-mode-toggle { position: fixed; top: 20px; right: 20px; cursor: pointer; padding: 10px; border-radius: 50%; background: var(--box); border: 1px solid var(--border); font-size: 20px; }
+        .contenedor { max-width: 480px; width: 100%; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border-color); box-shadow: var(--box-shadow); margin-top: 6vh; position: relative; }
         
-        input, select { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 15px; border: none; border-radius: 12px; background: #000; color: #fff; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
-        body.dark-mode button { background: #fff; color: #000; }
+        /* Estilo del Logo PDP */
+        .brand { text-align: center; font-size: 32px; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 30px; }
+        .brand span { color: var(--accent); }
+
+        /* Estilo de Formulario */
+        input, select { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); box-sizing: border-box; font-size: 16px; transition: border-color 0.2s; }
+        input:focus, select:focus { border-color: var(--accent); outline: none; }
         
-        .resultado { margin-top: 25px; padding: 20px; border-radius: 15px; background: var(--bg); border: 1px solid var(--border); text-align: center; }
-        .miniatura { width: 100%; border-radius: 12px; margin-top: 15px; }
-        .btn-descarga { display: block; margin-top: 15px; background: #28a745; color: white; padding: 12px; text-decoration: none; border-radius: 10px; font-weight: bold; }
+        button.btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--btn-bg); color: var(--btn-text); font-weight: 600; cursor: pointer; font-size: 16px; transition: opacity 0.2s; }
+        button.btn-main:hover { opacity: 0.9; }
         
-        .historial { margin-top: 40px; }
-        .historial h2 { font-size: 18px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .historial-lista { list-style: none; padding: 0; }
-        .historial-item { padding: 10px; border-bottom: 1px solid var(--border); font-size: 14px; display: flex; justify-content: space-between; }
-        .historial-item a { color: var(--accent); text-decoration: none; }
+        /* Sección de Resultados */
+        .resultado { margin-top: 30px; padding: 25px; border-radius: 18px; background: var(--bg-body); border: 1px solid var(--border-color); text-align: center; }
+        .miniatura { width: 100%; border-radius: 14px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .btn-descarga { display: block; margin-top: 20px; background: var(--accent); color: white; padding: 14px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 15px; }
+        
+        /* Historial */
+        .historial { margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px; }
+        .historial h2 { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: var(--text-secondary); }
+        .historial-lista { list-style: none; padding: 0; margin: 0; }
+        .historial-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .historial-item:last-child { border-bottom: none; }
+        .historial-item span { font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
+        .historial-item small { color: var(--text-secondary); font-size: 12px; }
+
+        /* NUEVO TOGGLE DE TEMA (Abajo a la Izquierda) */
+        .theme-switcher-container { position: fixed; bottom: 25px; left: 25px; z-index: 100; }
+        .theme-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: 0.3s; }
+        .theme-btn:hover { transform: scale(1.05); }
+        
+        /* Ocultamos el ícono opuesto con CSS */
+        .theme-btn .sun-icon { display: none; }
+        .theme-btn .moon-icon { display: block; }
+        
+        body.dark-mode .theme-btn .sun-icon { display: block; }
+        body.dark-mode .theme-btn .moon-icon { display: none; }
+
+        /* Íconos SVG simples para sun/moon */
+        .theme-icon { fill: currentColor; width: 22px; height: 22px; }
     </style>
 </head>
 <body id="cuerpo">
-    <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌓</button>
+    <div class="theme-switcher-container">
+        <button id="theme-btn" class="theme-btn" onclick="toggleDarkMode()" title="Cambiar tema">
+            <svg class="theme-icon moon-icon" viewBox="0 0 24 24"><path d="M12.3 22h-.1c-3.3 0-6.4-1.3-8.7-3.6C1.2 16.1 0 13 0 9.7 0 6.1 2 2.8 5.2 1.2c.3-.2.6-.1.8.1.3.3.3.6.1.9C5.2 4 4.8 5.3 4.8 6.7c0 3.9 3.2 7.1 7.1 7.1.9 0 1.7-.2 2.5-.5.3-.1.6 0 .8.2.2.2.3.6.1.8-1.2 1.9-3.4 3-5.7 3H9.7c.3 2.1 2.1 3.7 4.2 3.7 1 0 2-.4 2.8-1.1.2-.2.6-.2.8 0 .3.2.3.6.1.8-1.2 1.1-2.9 1.7-4.6 1.7-.1.1-.1.1-.1.1z"/></svg>
+            <svg class="theme-icon sun-icon" viewBox="0 0 24 24"><path d="M12 18c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6zm0-10c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zM12 4c.6 0 1-.4 1-1V1c0-.6-.4-1-1-1s-1 .4-1 1v2c0 .6.4 1 1 1zM12 20c-.6 0-1 .4-1 1v2c0 .6.4 1 1 1s1-.4 1-1v2c0-.6-.4-1-1-1zM23 11h-2c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1-.4 1-1s-.4-1-1-1zM4 12c0-.6-.4-1-1-1H1c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1-.4 1-1zM19.8 18.4l-1.4 1.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3l1.4-1.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0zM4.2 5.6l-1.4 1.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3L5.6 7c.4-.4.4-1 0-1.4s-1-.4-1.4 0zM18.4 4.2l1.4 1.4c.4.4.4 1 0 1.4s-1 .4-1.4 0L17 5.6c-.4-.4-.4-1 0-1.4s1-.4 1.4 0zM5.6 17L4.2 18.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3l1.4-1.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0z"/></svg>
+        </button>
+    </div>
     
     <div class="contenedor">
-        <h1>Súper Descargador <span style="color: #28a745;">Pro</span></h1>
+        <div class="brand">P<span>D</span>P</div>
         
         <form method="POST">
-            <input type="url" name="enlace" placeholder="Pega el enlace aquí..." required>
+            <input type="url" name="enlace" placeholder="Pega el enlace de X o Facebook..." required>
             <select name="calidad">
-                <option value="alta">Alta Calidad (1080p/720p)</option>
-                <option value="media">Calidad Media (480p)</option>
-                <option value="baja">Calidad Baja (360p)</option>
-                <option value="audio">Solo Audio (MP3)</option>
+                <option value="alta">Video (Alta Calidad)</option>
+                <option value="media">Video (Media 480p)</option>
+                <option value="baja">Video (Baja 360p)</option>
+                <option value="audio">Audio (MP3)</option>
                 <option value="imagen">Solo Miniatura (JPG)</option>
             </select>
-            <button type="submit">Generar Descarga</button>
+            <button type="submit" class="btn-main">Generar Descarga</button>
         </form>
 
-        {% if mensaje %}
+        {% if mensaje_resultado %}
             <div class="resultado">
-                {{ mensaje | safe }}
-                {% if mini %}<img src="{{ mini }}" class="miniatura">{% endif %}
+                {{ mensaje_resultado | safe }}
+                {% if miniatura_url %}
+                    <img src="{{ miniatura_url }}" class="miniatura">
+                {% endif %}
                 <script>
-                    // Guardar en historial de JS
-                    let hist = JSON.parse(localStorage.getItem('descargas') || '[]');
-                    hist.unshift({titulo: "{{ tit }}", fecha: new Date().toLocaleDateString()});
-                    localStorage.setItem('descargas', JSON.stringify(hist.slice(0, 5)));
+                    let hist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
+                    const nuevo = { titulo: "{{ titulo_v }}", fecha: new Date().toLocaleDateString() };
+                    // Evitar duplicados recientes
+                    if(hist.length === 0 || hist[0].titulo !== nuevo.titulo) {
+                        hist.unshift(nuevo);
+                        localStorage.setItem('pdp_historial', JSON.stringify(hist.slice(0, 5)));
+                    }
                 </script>
             </div>
         {% endif %}
 
         <div class="historial">
             <h2>Recientes</h2>
-            <ul id="lista-historial" class="historial-lista"></ul>
+            <ul id="lista-historial" class="historial-lista">
+                </ul>
         </div>
     </div>
 
     <script>
+        // Lógica de Modo Oscuro
         function toggleDarkMode() {
-            document.getElementById('cuerpo').classList.toggle('dark-mode');
-            localStorage.setItem('dark', document.getElementById('cuerpo').classList.contains('dark-mode'));
+            const body = document.getElementById('cuerpo');
+            body.classList.toggle('dark-mode');
+            localStorage.setItem('pdp_theme', body.classList.contains('dark-mode') ? 'dark' : 'light');
         }
-        if(localStorage.getItem('dark') === 'true') toggleDarkMode();
 
-        // Cargar historial
-        const lista = document.getElementById('lista-historial');
-        const datos = JSON.parse(localStorage.getItem('descargas') || '[]');
-        datos.forEach(item => {
-            lista.innerHTML += `<li class="historial-item"><span>${item.titulo}</span> <small>${item.fecha}</small></li>`;
-        });
+        // Cargar tema guardado
+        if(localStorage.getItem('pdp_theme') === 'dark') {
+            document.getElementById('cuerpo').classList.add('dark-mode');
+        }
+
+        // Cargar Historial Local
+        const listaHist = document.getElementById('lista-historial');
+        const datosHist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
+        
+        if(datosHist.length === 0) {
+            listaHist.innerHTML = '<li class="historial-item" style="color: var(--text-secondary); justify-content: center;">No hay descargas recientes.</li>';
+        } else {
+            datosHist.forEach(item => {
+                listaHist.innerHTML += `<li class="historial-item"><span>${item.titulo}</span> <small>${item.fecha}</small></li>`;
+            });
+        }
     </script>
 </body>
 </html>
 """
 
+# ... [Mantenemos el resto del código de servidor.py IGUAL] ...
+# Solo asegúrate de pasar 'titulo_v' en el render_template_string final de la función inicio()
+
+# --- ACTUALIZACIÓN EN LA FUNCIÓN INICIO (PARA EL HISTORIAL) ---
+# En tu función inicio(), asegúrate de que al final devuelves el título:
+# return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura, titulo_v=titulo_v)
+
+# Aquí te dejo la función inicio() completa por si acaso:
+import yt_dlp
+from flask import Flask, render_template_string, request, Response, stream_with_context
+
 @app.route('/', methods=['GET', 'POST'])
 def inicio():
-    res, mini, tit = None, None, "Video"
+    mensaje = ""
+    miniatura = None
+    titulo_v = "Video" # Valor por defecto
     if request.method == 'POST':
         url = request.form['enlace']
-        cal = request.form['calidad']
+        calidad = request.form['calidad']
         
-        # Mapeo de calidades
         f_map = {
             'alta': 'best',
             'media': 'best[height<=480]',
@@ -112,39 +189,38 @@ def inicio():
         }
         
         opciones = {
-            'quiet': True, 'skip_download': True,
-            'format': f_map.get(cal, 'best'),
-            # ESTRATEGIA DEFINITIVA PARA YT EN LA NUBE: Usar cliente iOS/Android
-            'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
-            'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+            'quiet': True,
+            'format': f_map.get(calidad, 'best'),
+            'skip_download': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
         try:
             with yt_dlp.YoutubeDL(opciones) as ydl:
                 info = ydl.extract_info(url, download=False)
                 d_url = info.get('url', None)
-                mini = info.get('thumbnail', None)
-                tit = info.get('title', 'Video descargado')
+                miniatura = info.get('thumbnail', None)
+                titulo_v = info.get('title', 'Video descargado') # Obtenemos el título real
                 
             if d_url:
-                final_url = d_url if cal != 'imagen' else mini
-                res = f'✨ ¡Listo! <br> <a href="/tunel?url={final_url}" class="btn-descarga">Descargar Ahora</a>'
+                final_url = d_url if calidad != 'imagen' else miniatura
+                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={final_url}" class="btn-descarga">Descargar Ahora</a>'
             else:
-                res = "⚠️ YouTube bloqueó la IP. Prueba con Facebook/X o un video de YT menos popular."
+                mensaje = "⚠️ No se encontró un enlace compatible."
         except:
-            res = "⚠️ Error al procesar el enlace."
+            mensaje = "⚠️ Error al procesar. Prueba con otro link de X o Facebook."
 
-    return render_template_string(PAGINA_WEB, mensaje=res, mini=mini, tit=tit)
+    # PASAMOS EL TÍTULO A LA WEB PARA EL HISTORIAL
+    return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura, titulo_v=titulo_v)
 
-@app.route('/tunel')
-def tunel():
-    v_url = request.args.get('url')
-    # Fingimos ser un navegador para el bypass final
+@app.route('/descargar')
+def proceso_descarga():
+    video_url = request.args.get('url')
     h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-    r = requests.get(v_url, stream=True, headers=h)
-    def s():
+    r = requests.get(video_url, stream=True, headers=h)
+    def stream():
         for chunk in r.iter_content(chunk_size=4096): yield chunk
-    return Response(stream_with_context(s()), headers={
+    return Response(stream_with_context(stream()), headers={
         "Content-Disposition": "attachment; filename=archivo_pdp.mp4",
         "Content-Type": r.headers.get('Content-Type')
     })
