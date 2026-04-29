@@ -3,12 +3,20 @@ import requests
 import urllib.parse
 import re
 import tempfile
-from flask import Flask, render_template_string, request, Response, stream_with_context
+from flask import Flask, render_template_string, request, Response, stream_with_context, jsonify
 import yt_dlp
 
 app = Flask(__name__)
 
-# --- DISEÑO CON LAS 3 NUEVAS MEJORAS (UX/UI) ---
+# ==========================================
+# CONFIGURACIÓN Y LÍMITES (SEGURIDAD)
+# ==========================================
+LIMITE_DURACION = 1200  # 20 minutos (en segundos)
+LIMITE_PESO_MB = 150    # 150 Megabytes aproximados
+
+# ==========================================
+# DISEÑO DE LA INTERFAZ (HTML/CSS/JS)
+# ==========================================
 PAGINA_WEB = """
 <!DOCTYPE html>
 <html lang="es">
@@ -27,348 +35,250 @@ PAGINA_WEB = """
             --bg-body: #121212; --bg-card: #1e1e1e; --text-main: #e0e0e0; --text-secondary: #a0a0a0; 
             --border-color: #333333; --btn-bg: #f8f9fa; --btn-text: #1a1a1a; --box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 20px; transition: 0.3s; display: flex; justify-content: center; min-height: 100vh; align-items: flex-start; }
-        .contenedor { max-width: 480px; width: 100%; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border-color); box-shadow: var(--box-shadow); margin-top: 6vh; position: relative; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 20px; transition: 0.3s; display: flex; justify-content: center; min-height: 100vh; align-items: flex-start; }
+        .contenedor { max-width: 480px; width: 100%; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border-color); box-shadow: var(--box-shadow); margin-top: 6vh; }
         .brand { text-align: center; font-size: 32px; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 25px; }
         .brand span { color: var(--accent); }
         
         .redes-soportadas { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 18px; text-align: center; font-weight: 600; }
-        .redes-soportadas span { margin: 0 5px; }
-
-        /* --- NUEVO: GRUPO DE INPUT + BOTÓN PEGAR --- */
         .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
-        .input-group input { margin-bottom: 0; flex-grow: 1; }
-        .btn-pegar { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 14px; padding: 0 16px; cursor: pointer; font-size: 18px; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
-        .btn-pegar:hover { background: var(--bg-body); border-color: var(--accent); }
-
         input, select { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); box-sizing: border-box; font-size: 16px; transition: 0.2s; }
-        input:focus, select:focus { border-color: var(--accent); outline: none; }
+        input:focus { border-color: var(--accent); outline: none; }
         
-        /* --- NUEVO: BOTÓN DESACTIVADO --- */
         button.btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--btn-bg); color: var(--btn-text); font-weight: 600; cursor: pointer; font-size: 16px; transition: 0.3s; }
-        button.btn-main:hover:not(:disabled) { opacity: 0.9; }
         button.btn-main:disabled { opacity: 0.4; cursor: not-allowed; }
         
-        .resultado { margin-top: 30px; padding: 25px; border-radius: 18px; background: var(--bg-body); border: 1px solid var(--border-color); text-align: center; animation: fadeIn 0.5s ease; }
-        .miniatura { width: 100%; border-radius: 14px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .btn-descarga { display: block; margin-top: 20px; background: var(--accent); color: white; padding: 14px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 15px; transition: 0.2s; }
-        .btn-descarga:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); }
+        .btn-pegar { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 14px; padding: 0 16px; cursor: pointer; }
+
+        /* Estilos de resultado */
+        #resultado-dinamico { margin-top: 30px; display: none; }
+        .resultado-card { padding: 25px; border-radius: 18px; background: var(--bg-body); border: 1px solid var(--border-color); text-align: center; animation: fadeIn 0.5s ease; }
+        .miniatura { width: 100%; border-radius: 14px; margin-top: 15px; }
+        .btn-descarga { display: block; margin-top: 20px; background: var(--accent); color: white; padding: 14px; text-decoration: none; border-radius: 12px; font-weight: 600; }
         
-        .historial { margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px; }
-        /* --- NUEVO: CABECERA DEL HISTORIAL Y BOTÓN LIMPIAR --- */
-        .historial-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .historial h2 { font-size: 18px; font-weight: 600; margin: 0; color: var(--text-secondary); }
-        .btn-limpiar { background: transparent; border: none; color: #dc3545; font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: 0.2s; display: none; }
-        .btn-limpiar:hover { background: rgba(220, 53, 69, 0.1); }
-
-        .historial-lista { list-style: none; padding: 0; margin: 0; }
-        .historial-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; display: flex; justify-content: space-between; align-items: center; animation: fadeIn 0.3s ease; }
-        .historial-item:last-child { border-bottom: none; }
-        .historial-item span { font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
-        .historial-item small { color: var(--text-secondary); font-size: 12px; }
-
-        .theme-switcher-container { position: fixed; bottom: 25px; left: 25px; z-index: 100; }
-        .theme-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: 0.3s; }
-        .theme-btn .sun-icon { display: none; }
-        .theme-btn .moon-icon { display: block; }
-        body.dark-mode .theme-btn .sun-icon { display: block; }
-        body.dark-mode .theme-btn .moon-icon { display: none; }
-        .theme-icon { fill: currentColor; width: 22px; height: 22px; }
-
-        .loader-container { display: none; text-align: center; margin-top: 20px; padding: 20px; border-radius: 14px; background: var(--bg-body); border: 1px solid var(--border-color); }
-        .spinner { width: 36px; height: 36px; border: 4px solid var(--border-color); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .loader-text { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+        /* Loader */
+        #pantalla-carga { display: none; text-align: center; margin-top: 20px; }
+        .spinner { width: 36px; height: 36px; border: 4px solid var(--border-color); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .historial { margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px; }
+        .historial-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .btn-limpiar { background: transparent; border: none; color: #dc3545; font-weight: 600; cursor: pointer; font-size: 13px; }
+        .historial-lista { list-style: none; padding: 0; margin: 0; }
+        .historial-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; display: flex; justify-content: space-between; }
+        
+        .theme-switcher-container { position: fixed; bottom: 25px; left: 25px; }
+        .theme-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body id="cuerpo">
-    <div class="theme-switcher-container">
-        <button id="theme-btn" class="theme-btn" onclick="toggleDarkMode()">
-            <svg class="theme-icon moon-icon" viewBox="0 0 24 24"><path d="M12.3 22h-.1c-3.3 0-6.4-1.3-8.7-3.6C1.2 16.1 0 13 0 9.7 0 6.1 2 2.8 5.2 1.2c.3-.2.6-.1.8.1.3.3.3.6.1.9C5.2 4 4.8 5.3 4.8 6.7c0 3.9 3.2 7.1 7.1 7.1.9 0 1.7-.2 2.5-.5.3-.1.6 0 .8.2.2.3.6.1.8-1.2 1.9-3.4 3-5.7 3H9.7c.3 2.1 2.1 3.7 4.2 3.7 1 0 2-.4 2.8-1.1.2-.2.6-.2.8 0 .3.2.3.6.1.8-1.2 1.1-2.9 1.7-4.6 1.7-.1.1-.1.1-.1.1z"/></svg>
-            <svg class="theme-icon sun-icon" viewBox="0 0 24 24"><path d="M12 18c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6zm0-10c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zM12 4c.6 0 1-.4 1-1V1c0-.6-.4-1-1-1s-1 .4-1 1v2c0 .6.4 1 1 1zM12 20c-.6 0-1 .4-1 1v2c0 .6.4 1 1 1s1-.4 1-1v2c0-.6-.4-1-1-1zM23 11h-2c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1-.4 1-1s-.4-1-1-1zM4 12c0-.6-.4-1-1-1H1c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1-.4 1-1zM19.8 18.4l-1.4 1.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3l1.4-1.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0zM4.2 5.6l-1.4 1.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3L5.6 7c.4-.4.4-1 0-1.4s-1-.4-1.4 0zM18.4 4.2l1.4 1.4c.4.4.4 1 0 1.4s-1 .4-1.4 0L17 5.6c-.4-.4-.4-1 0-1.4s1-.4 1.4 0zM5.6 17L4.2 18.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3l1.4-1.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0z"/></svg>
-        </button>
-    </div>
-    
     <div class="contenedor">
         <div class="brand">P<span>D</span>P</div>
+        <div class="redes-soportadas"><span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ Facebook</span></div>
         
-        <div class="redes-soportadas">
-            <span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ Facebook</span> | <span>✅ Pinterest</span>
-        </div>
-        
-        <form id="form-principal" method="POST">
+        <form id="form-ajax">
             <div class="input-group">
-                <input type="url" id="input-enlace" name="enlace" placeholder="Pega el enlace del video..." required autocomplete="off">
-                <button type="button" class="btn-pegar" id="btn-pegar" title="Pegar enlace">📋</button>
+                <input type="url" id="input-enlace" name="enlace" placeholder="Pega el enlace aquí..." required autocomplete="off">
+                <button type="button" class="btn-pegar" id="btn-pegar">📋</button>
             </div>
-            
-            <select name="calidad">
+            <select name="calidad" id="select-calidad">
                 <option value="alta">Video (Alta Calidad)</option>
-                <option value="media">Video (Media 480p)</option>
-                <option value="baja">Video (Baja 360p)</option>
+                <option value="media">Video (480p)</option>
                 <option value="audio">Audio (MP3)</option>
-                <option value="imagen">Solo Miniatura (JPG)</option>
+                <option value="imagen">Miniatura (JPG)</option>
             </select>
             <button type="submit" class="btn-main" id="btn-generar" disabled>Generar Descarga</button>
         </form>
 
-        <div class="loader-container" id="pantalla-carga">
+        <div id="pantalla-carga">
             <div class="spinner"></div>
-            <div class="loader-text">Procesando archivo...<br><small style="font-weight: 400;">Buscando la mejor calidad</small></div>
+            <p style="color: var(--text-secondary); font-size: 14px;">Analizando enlace...</p>
         </div>
 
-        {% if mensaje_resultado %}
-            <div class="resultado" id="resultado-servidor">
-                {{ mensaje_resultado | safe }}
-                {% if miniatura_url %}
-                    <img src="{{ miniatura_url }}" class="miniatura">
-                {% endif %}
-                <script>
-                    let hist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
-                    const nuevo = { titulo: "{{ titulo_v }}", fecha: new Date().toLocaleDateString() };
-                    if(hist.length === 0 || hist[0].titulo !== nuevo.titulo) {
-                        hist.unshift(nuevo);
-                        localStorage.setItem('pdp_historial', JSON.stringify(hist.slice(0, 5)));
-                    }
-                </script>
-            </div>
-        {% endif %}
+        <div id="resultado-dinamico"></div>
 
         <div class="historial">
             <div class="historial-header">
-                <h2>Recientes</h2>
-                <button type="button" class="btn-limpiar" id="btn-limpiar">🗑️ Limpiar</button>
+                <h2 style="font-size: 16px; color: var(--text-secondary);">Recientes</h2>
+                <button id="btn-limpiar" class="btn-limpiar">🗑️ Limpiar</button>
             </div>
             <ul id="lista-historial" class="historial-lista"></ul>
         </div>
     </div>
 
+    <div class="theme-switcher-container">
+        <button class="theme-btn" onclick="toggleDarkMode()">🌓</button>
+    </div>
+
     <script>
-        // 1. TEMA OSCURO
-        function toggleDarkMode() {
-            const body = document.getElementById('cuerpo');
-            body.classList.toggle('dark-mode');
-            localStorage.setItem('pdp_theme', body.classList.contains('dark-mode') ? 'dark' : 'light');
-        }
-        if(localStorage.getItem('pdp_theme') === 'dark') { document.getElementById('cuerpo').classList.add('dark-mode'); }
-
-        // 2. LÓGICA DE HISTORIAL Y BOTÓN LIMPIAR
-        const listaHist = document.getElementById('lista-historial');
-        const btnLimpiar = document.getElementById('btn-limpiar');
-        
-        function renderizarHistorial() {
-            const datosHist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
-            listaHist.innerHTML = '';
-            
-            if(datosHist.length === 0) {
-                listaHist.innerHTML = '<li class="historial-item" style="color: var(--text-secondary); justify-content: center; border: none;">No hay descargas recientes.</li>';
-                btnLimpiar.style.display = 'none'; // Ocultamos basura si no hay nada
-            } else {
-                btnLimpiar.style.display = 'block'; // Mostramos basura
-                datosHist.forEach(item => {
-                    listaHist.innerHTML += `<li class="historial-item"><span>${item.titulo}</span> <small>${item.fecha}</small></li>`;
-                });
-            }
-        }
-        
-        // Cargar al iniciar
-        renderizarHistorial();
-
-        // Acción de limpiar historial
-        btnLimpiar.addEventListener('click', function() {
-            localStorage.removeItem('pdp_historial'); // Borra memoria local
-            renderizarHistorial(); // Refresca pantalla
-        });
-
-        // 3. DETECCIÓN DE ENLACES
-        const inputEnlace = document.getElementById('input-enlace');
+        const form = document.getElementById('form-ajax');
+        const input = document.getElementById('input-enlace');
         const btnGenerar = document.getElementById('btn-generar');
+        const loader = document.getElementById('pantalla-carga');
+        const contenedorResultado = document.getElementById('resultado-dinamico');
 
-        function validarEnlace() {
-            const valor = inputEnlace.value.trim();
-            // Si empieza con http o https, encendemos el botón
-            if(valor.startsWith('http://') || valor.startsWith('https://')) {
-                btnGenerar.disabled = false;
-            } else {
-                btnGenerar.disabled = true;
+        // Validación de enlace
+        input.addEventListener('input', () => {
+            btnGenerar.disabled = !input.value.trim().startsWith('http');
+        });
+
+        // --- MEJORA 1: AJAX (FETCH API) ---
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            btnGenerar.style.display = 'none';
+            loader.style.display = 'block';
+            contenedorResultado.style.display = 'none';
+
+            const formData = new FormData(form);
+            
+            try {
+                const response = await fetch('/procesar', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                loader.style.display = 'none';
+                btnGenerar.style.display = 'block';
+                contenedorResultado.style.display = 'block';
+
+                if (data.status === 'success') {
+                    contenedorResultado.innerHTML = `
+                        <div class="resultado-card">
+                            <p>✨ ¡Listo!</p>
+                            <a href="${data.url_descarga}" class="btn-descarga">Descargar Ahora</a>
+                            <img src="${data.miniatura}" class="miniatura">
+                        </div>
+                    `;
+                    guardarHistorial(data.titulo);
+                } else {
+                    contenedorResultado.innerHTML = `<div class="resultado-card" style="border-color: #dc3545; color: #dc3545;">⚠️ ${data.message}</div>`;
+                }
+            } catch (error) {
+                loader.style.display = 'none';
+                btnGenerar.style.display = 'block';
+                alert('Error de conexión con el servidor.');
             }
+        });
+
+        // Pegar del portapapeles
+        document.getElementById('btn-pegar').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                input.value = text;
+                btnGenerar.disabled = !text.trim().startsWith('http');
+            } catch(e) {}
+        });
+
+        // Historial
+        function guardarHistorial(titulo) {
+            let hist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
+            hist.unshift({ titulo, fecha: new Date().toLocaleDateString() });
+            localStorage.setItem('pdp_historial', JSON.stringify(hist.slice(0, 5)));
+            renderHistorial();
+        }
+
+        function renderHistorial() {
+            const lista = document.getElementById('lista-historial');
+            const data = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
+            lista.innerHTML = data.length ? '' : '<li style="text-align:center; color:gray; font-size:13px;">No hay descargas</li>';
+            data.forEach(i => {
+                lista.innerHTML += `<li class="historial-item"><span>${i.titulo}</span><small>${i.fecha}</small></li>`;
+            });
         }
         
-        // Cada vez que el usuario teclee algo, validamos
-        inputEnlace.addEventListener('input', validarEnlace);
-
-        // 4. BOTÓN DE PEGAR
-        document.getElementById('btn-pegar').addEventListener('click', async function() {
-            try {
-                // Pide permiso para leer el portapapeles y lo pega
-                const texto = await navigator.clipboard.readText();
-                inputEnlace.value = texto;
-                validarEnlace(); // Validamos si lo que pegó es un link
-            } catch (err) {
-                alert('No se pudo acceder al portapapeles. Da clic derecho y pega manualmente.');
-            }
-        });
-
-        // 5. PANTALLA DE CARGA
-        document.getElementById('form-principal').addEventListener('submit', function() {
-            btnGenerar.style.display = 'none';
-            document.getElementById('pantalla-carga').style.display = 'block';
-            const resAnterior = document.getElementById('resultado-servidor');
-            if (resAnterior) resAnterior.style.display = 'none';
-        });
+        document.getElementById('btn-limpiar').onclick = () => { localStorage.removeItem('pdp_historial'); renderHistorial(); };
+        function toggleDarkMode() { document.body.classList.toggle('dark-mode'); }
+        renderHistorial();
     </script>
 </body>
 </html>
 """
 
-# ... [AQUÍ SIGUE TU LÓGICA PYTHON EXACTAMENTE IGUAL] ...
+# ==========================================
+# LÓGICA DEL SERVIDOR (PYTHON)
+# ==========================================
 
-@app.route('/', methods=['GET', 'POST'])
-def inicio():
-    mensaje = ""
-    miniatura = None
-    titulo_v = "Archivo Multimedia"
+@app.route('/')
+def index():
+    return render_template_string(PAGINA_WEB)
+
+@app.route('/procesar', methods=['POST'])
+def procesar_enlace():
+    url = request.form.get('enlace')
+    calidad = request.form.get('calidad')
     
-    if request.method == 'POST':
-        url_original = request.form['enlace']
-        calidad = request.form['calidad']
-        
-        f_map = {
-            'alta': 'best',
-            'media': 'best[height<=480]/best',
-            'baja': 'best[height<=360]/best',
-            'audio': 'bestaudio/best'
-        }
-        
-        opciones = {
-            'quiet': True,
-            'format': f_map.get(calidad, 'best'),
-            'skip_download': True,
-            'nocheckcertificate': True,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        
-        try:
-            with yt_dlp.YoutubeDL(opciones) as ydl:
-                info = ydl.extract_info(url_original, download=False)
-        except Exception:
-            opciones_sup = {
-                'quiet': True,
-                'format': 'best/bestvideo+bestaudio/b/all', 
-                'skip_download': True,
-                'nocheckcertificate': True,
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            try:
-                with yt_dlp.YoutubeDL(opciones_sup) as ydl:
-                    info = ydl.extract_info(url_original, download=False)
-            except Exception as e2:
-                error_msg = str(e2)
-                mensaje = f"⚠️ Error definitivo: {error_msg[:100]}..."
-                return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje)
+    opciones = {
+        'quiet': True,
+        'skip_download': True,
+        'nocheckcertificate': True,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
 
-        if info:
-            if 'entries' in info and len(info['entries']) > 0:
-                info = info['entries'][0]
-            
+    try:
+        with yt_dlp.YoutubeDL(opciones) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if 'entries' in info: info = info['entries'][0]
+
+            # --- MEJORA 3: SEGURIDAD (DURACIÓN Y PESO) ---
+            duracion = info.get('duration', 0)
+            if duracion > LIMITE_DURACION:
+                return jsonify({'status': 'error', 'message': 'El video supera los 20 minutos permitidos.'})
+
             d_url = info.get('url')
-            modo_descarga = 'directo'
+            # Si es m3u8 o no tiene URL directa, preparamos para modo servidor
+            modo = 'servidor' if not d_url or '.m3u8' in d_url else 'directo'
             
-            if d_url and ('.m3u8' in d_url or 'manifest' in d_url):
-                modo_descarga = 'servidor'
+            # Limpieza de datos para el cliente
+            titulo = info.get('title', 'Video_Descargado')
+            miniatura = info.get('thumbnail', '')
+            ext = 'jpg' if calidad == 'imagen' else ('mp3' if calidad == 'audio' else 'mp4')
             
-            if not d_url or modo_descarga == 'servidor':
-                mp4_encontrado = False
-                if 'formats' in info:
-                    for formato in reversed(info['formats']):
-                        f_url = formato.get('url', '')
-                        if f_url and '.m3u8' not in f_url and 'manifest' not in f_url:
-                            if formato.get('vcodec') != 'none' and formato.get('acodec') != 'none':
-                                d_url = f_url
-                                modo_descarga = 'directo'
-                                mp4_encontrado = True
-                                break
-                
-                if not mp4_encontrado:
-                    modo_descarga = 'servidor'
-                    d_url = url_original 
-                    
-            miniatura = info.get('thumbnail')
-            titulo_v = info.get('title', 'Video_Descargado')
+            # Construcción de URL de descarga final
+            final_url = d_url if calidad != 'imagen' else miniatura
+            safe_url = urllib.parse.quote(final_url or url, safe='')
+            safe_title = urllib.parse.quote(titulo, safe='')
             
-            if d_url:
-                final_url = d_url if calidad != 'imagen' else miniatura
-                if calidad == 'imagen': modo_descarga = 'directo'
-                
-                safe_url = urllib.parse.quote(final_url, safe='')
-                safe_title = urllib.parse.quote(titulo_v, safe='')
-                ext = 'jpg' if calidad == 'imagen' else ('mp3' if calidad == 'audio' else 'mp4')
-                
-                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={safe_url}&titulo={safe_title}&ext={ext}&modo={modo_descarga}" class="btn-descarga">Descargar Ahora</a>'
-            else:
-                mensaje = "⚠️ Fallo crítico al procesar el archivo."
+            url_final_pdp = f"/descargar?url={safe_url}&titulo={safe_title}&ext={ext}&modo={modo}"
+            
+            return jsonify({
+                'status': 'success',
+                'url_descarga': url_final_pdp,
+                'miniatura': miniatura,
+                'titulo': titulo
+            })
 
-    return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura, titulo_v=titulo_v)
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': 'Plataforma no soportada o perfil privado.'})
 
 @app.route('/descargar')
-def proceso_descarga():
-    encoded_url = request.args.get('url')
-    video_url = urllib.parse.unquote(encoded_url)
-    modo = request.args.get('modo', 'directo')
-    titulo_raw = request.args.get('titulo', 'Descarga_PDP')
+def descargar_archivo():
+    video_url = urllib.parse.unquote(request.args.get('url'))
+    titulo = re.sub(r'[^\w\s-]', '', request.args.get('titulo', 'descarga')).strip().replace(' ', '_')
     ext = request.args.get('ext', 'mp4')
-    
-    titulo_limpio = re.sub(r'[^\w\s-]', '', titulo_raw).strip()
-    titulo_limpio = titulo_limpio.replace(' ', '_')
-    if not titulo_limpio:
-        titulo_limpio = "Video_PDP"
-        
-    nombre_final = f"{titulo_limpio}.{ext}"
-    
+    modo = request.args.get('modo', 'directo')
+
     if modo == 'directo':
-        h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-        r = requests.get(video_url, stream=True, headers=h)
-        
-        def stream():
-            for chunk in r.iter_content(chunk_size=4096): 
-                if chunk: yield chunk
-                
-        return Response(stream_with_context(stream()), headers={
-            "Content-Disposition": f'attachment; filename="{nombre_final}"',
-            "Content-Type": r.headers.get('Content-Type', 'application/octet-stream')
+        r = requests.get(video_url, stream=True, headers={'User-Agent': 'Mozilla/5.0'})
+        return Response(stream_with_context(r.iter_content(4096)), headers={
+            "Content-Disposition": f'attachment; filename="{titulo}.{ext}"',
+            "Content-Type": "application/octet-stream"
         })
-        
     else:
-        temp_dir = tempfile.gettempdir()
-        temp_filepath = os.path.join(temp_dir, f"{titulo_limpio}_{os.urandom(4).hex()}.{ext}")
+        # Modo Servidor (Temporal para HLS)
+        temp_path = os.path.join(tempfile.gettempdir(), f"{titulo}.{ext}")
+        with yt_dlp.YoutubeDL({'outtmpl': temp_path, 'format': 'best', 'quiet': True}) as ydl:
+            ydl.download([video_url])
         
-        opciones_descarga = {
-            'quiet': True,
-            'format': 'best',
-            'outtmpl': temp_filepath,
-            'nocheckcertificate': True
-        }
-        
-        try:
-            with yt_dlp.YoutubeDL(opciones_descarga) as ydl:
-                ydl.download([video_url])
-                
-            def generar_y_borrar():
-                try:
-                    with open(temp_filepath, 'rb') as f:
-                        while chunk := f.read(4096):
-                            yield chunk
-                finally:
-                    if os.path.exists(temp_filepath):
-                        os.remove(temp_filepath)
-                        
-            return Response(stream_with_context(generar_y_borrar()), headers={
-                "Content-Disposition": f'attachment; filename="{nombre_final}"',
-                "Content-Type": "video/mp4" if ext == 'mp4' else "application/octet-stream"
-            })
-        except Exception as e:
-            return f"Hubo un error al unir los pedazos en el servidor: {str(e)}", 500
+        def stream_and_remove():
+            with open(temp_path, 'rb') as f:
+                yield from f
+            if os.path.exists(temp_path): os.remove(temp_path)
+            
+        return Response(stream_with_context(stream_and_remove()), headers={
+            "Content-Disposition": f'attachment; filename="{titulo}.{ext}"'
+        })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
