@@ -1,5 +1,7 @@
 import os
 import requests
+import urllib.parse
+import re
 from flask import Flask, render_template_string, request, Response, stream_with_context
 import yt_dlp
 
@@ -155,12 +157,9 @@ def inicio():
         }
         
         try:
-            # INTENTO 1: Con la calidad que pidió el usuario
             with yt_dlp.YoutubeDL(opciones_principales) as ydl:
                 info = ydl.extract_info(url, download=False)
         except Exception as e:
-            # INTENTO 2 (EL PLAN B): Si falla, quitamos el filtro de formato
-            # Esto le dice a yt-dlp: "Solo dame cualquier formato que encuentres, no importa la calidad"
             opciones_supervivencia = {
                 'quiet': True,
                 'skip_download': True,
@@ -171,33 +170,38 @@ def inicio():
                 with yt_dlp.YoutubeDL(opciones_supervivencia) as ydl:
                     info = ydl.extract_info(url, download=False)
             except Exception as e2:
-                # Si esto falla, ya es problema del enlace, no de nuestra app
                 error_msg = str(e2)
                 mensaje = f"⚠️ No se pudo extraer el video. <br><br><small style='color: #dc3545;'>Detalle: {error_msg[:100]}...</small>"
                 return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje)
 
-        # --- LÓGICA DE EXTRACCIÓN SÚPER AGRESIVA ---
         if info:
             if 'entries' in info and len(info['entries']) > 0:
                 info = info['entries'][0]
             
             d_url = info.get('url')
             
-            # Si el enlace viene oculto, rebuscamos en la caja negra de formatos
             if not d_url and 'formats' in info:
-                # Buscar de abajo hacia arriba (usualmente los últimos tienen mejor calidad)
                 for formato in reversed(info['formats']):
-                    # Nos aseguramos de agarrar uno que tenga enlace real
                     if formato.get('url') and 'manifest' not in formato.get('url'):
                         d_url = formato.get('url')
                         break
                         
             miniatura = info.get('thumbnail')
-            titulo_v = info.get('title', 'Video descargado')
+            titulo_v = info.get('title', 'Video_Descargado')
             
             if d_url:
                 final_url = d_url if calidad != 'imagen' else miniatura
-                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={final_url}" class="btn-descarga">Descargar Ahora</a>'
+                
+                # PREPARACIÓN SEGURA PARA EL TÚNEL
+                # 1. Empaquetamos la URL para que no se corte con símbolos raros
+                safe_url = urllib.parse.quote(final_url, safe='')
+                # 2. Empaquetamos el título
+                safe_title = urllib.parse.quote(titulo_v, safe='')
+                
+                # Asignamos la extensión correcta
+                ext = 'jpg' if calidad == 'imagen' else ('mp3' if calidad == 'audio' else 'mp4')
+                
+                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={safe_url}&titulo={safe_title}&ext={ext}" class="btn-descarga">Descargar Ahora</a>'
             else:
                 mensaje = "⚠️ El formato de este post es extraño. Intenta con otro enlace."
 
@@ -206,13 +210,32 @@ def inicio():
 @app.route('/descargar')
 def proceso_descarga():
     video_url = request.args.get('url')
+    titulo_raw = request.args.get('titulo', 'Descarga_PDP')
+    ext = request.args.get('ext', 'mp4')
+    
+    # LIMPIEZA DEL NOMBRE DE ARCHIVO
+    # Solo dejamos letras, números y espacios para que el sistema no explote
+    titulo_limpio = re.sub(r'[^\w\s-]', '', titulo_raw).strip()
+    # Cambiamos espacios por guiones bajos para que se vea profesional
+    titulo_limpio = titulo_limpio.replace(' ', '_')
+    
+    if not titulo_limpio:
+        titulo_limpio = "Video_PDP"
+        
+    nombre_final = f"{titulo_limpio}.{ext}"
+    
     h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     r = requests.get(video_url, stream=True, headers=h)
+    
     def stream():
-        for chunk in r.iter_content(chunk_size=4096): yield chunk
+        for chunk in r.iter_content(chunk_size=4096): 
+            if chunk:
+                yield chunk
+                
     return Response(stream_with_context(stream()), headers={
-        "Content-Disposition": "attachment; filename=archivo_pdp.mp4",
-        "Content-Type": r.headers.get('Content-Type')
+        "Content-Disposition": f'attachment; filename="{nombre_final}"',
+        # Aseguramos que se transfiera como un archivo normal
+        "Content-Type": r.headers.get('Content-Type', 'application/octet-stream')
     })
 
 if __name__ == '__main__':
