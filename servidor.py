@@ -238,4 +238,44 @@ def proceso_descarga():
         r = requests.get(video_url, stream=True, headers=h)
         
         def stream():
-            for chunk in r.iter_content(chunk_
+            for chunk in r.iter_content(chunk_size=4096): 
+                if chunk: yield chunk
+                
+        return Response(stream_with_context(stream()), headers={
+            "Content-Disposition": f'attachment; filename="{nombre_final}"',
+            "Content-Type": r.headers.get('Content-Type', 'application/octet-stream')
+        })
+        
+    else:
+        temp_dir = tempfile.gettempdir()
+        temp_filepath = os.path.join(temp_dir, f"{titulo_limpio}_{os.urandom(4).hex()}.{ext}")
+        
+        opciones_descarga = {
+            'quiet': True,
+            'format': 'best',
+            'outtmpl': temp_filepath,
+            'nocheckcertificate': True
+        }
+        
+        try:
+            with yt_dlp.YoutubeDL(opciones_descarga) as ydl:
+                ydl.download([video_url])
+                
+            def generar_y_borrar():
+                try:
+                    with open(temp_filepath, 'rb') as f:
+                        while chunk := f.read(4096):
+                            yield chunk
+                finally:
+                    if os.path.exists(temp_filepath):
+                        os.remove(temp_filepath)
+                        
+            return Response(stream_with_context(generar_y_borrar()), headers={
+                "Content-Disposition": f'attachment; filename="{nombre_final}"',
+                "Content-Type": "video/mp4" if ext == 'mp4' else "application/octet-stream"
+            })
+        except Exception as e:
+            return f"Hubo un error al unir los pedazos en el servidor: {str(e)}", 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
