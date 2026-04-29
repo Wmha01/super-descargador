@@ -8,6 +8,7 @@ import yt_dlp
 
 app = Flask(__name__)
 
+# --- DISEÑO CON LAS 3 NUEVAS MEJORAS (UX/UI) ---
 PAGINA_WEB = """
 <!DOCTYPE html>
 <html lang="es">
@@ -34,10 +35,19 @@ PAGINA_WEB = """
         .redes-soportadas { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 18px; text-align: center; font-weight: 600; }
         .redes-soportadas span { margin: 0 5px; }
 
+        /* --- NUEVO: GRUPO DE INPUT + BOTÓN PEGAR --- */
+        .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
+        .input-group input { margin-bottom: 0; flex-grow: 1; }
+        .btn-pegar { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 14px; padding: 0 16px; cursor: pointer; font-size: 18px; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-pegar:hover { background: var(--bg-body); border-color: var(--accent); }
+
         input, select { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); box-sizing: border-box; font-size: 16px; transition: 0.2s; }
         input:focus, select:focus { border-color: var(--accent); outline: none; }
-        button.btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--btn-bg); color: var(--btn-text); font-weight: 600; cursor: pointer; font-size: 16px; transition: 0.2s; }
-        button.btn-main:hover { opacity: 0.9; }
+        
+        /* --- NUEVO: BOTÓN DESACTIVADO --- */
+        button.btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--btn-bg); color: var(--btn-text); font-weight: 600; cursor: pointer; font-size: 16px; transition: 0.3s; }
+        button.btn-main:hover:not(:disabled) { opacity: 0.9; }
+        button.btn-main:disabled { opacity: 0.4; cursor: not-allowed; }
         
         .resultado { margin-top: 30px; padding: 25px; border-radius: 18px; background: var(--bg-body); border: 1px solid var(--border-color); text-align: center; animation: fadeIn 0.5s ease; }
         .miniatura { width: 100%; border-radius: 14px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
@@ -45,9 +55,15 @@ PAGINA_WEB = """
         .btn-descarga:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); }
         
         .historial { margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px; }
-        .historial h2 { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: var(--text-secondary); }
+        /* --- NUEVO: CABECERA DEL HISTORIAL Y BOTÓN LIMPIAR --- */
+        .historial-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .historial h2 { font-size: 18px; font-weight: 600; margin: 0; color: var(--text-secondary); }
+        .btn-limpiar { background: transparent; border: none; color: #dc3545; font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 12px; border-radius: 8px; transition: 0.2s; display: none; }
+        .btn-limpiar:hover { background: rgba(220, 53, 69, 0.1); }
+
         .historial-lista { list-style: none; padding: 0; margin: 0; }
-        .historial-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .historial-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; display: flex; justify-content: space-between; align-items: center; animation: fadeIn 0.3s ease; }
+        .historial-item:last-child { border-bottom: none; }
         .historial-item span { font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; }
         .historial-item small { color: var(--text-secondary); font-size: 12px; }
 
@@ -59,7 +75,6 @@ PAGINA_WEB = """
         body.dark-mode .theme-btn .moon-icon { display: none; }
         .theme-icon { fill: currentColor; width: 22px; height: 22px; }
 
-        /* --- NUEVO ESTILO DE CARGA --- */
         .loader-container { display: none; text-align: center; margin-top: 20px; padding: 20px; border-radius: 14px; background: var(--bg-body); border: 1px solid var(--border-color); }
         .spinner { width: 36px; height: 36px; border: 4px solid var(--border-color); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -79,11 +94,15 @@ PAGINA_WEB = """
         <div class="brand">P<span>D</span>P</div>
         
         <div class="redes-soportadas">
-            <span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ Facebook</span>
+            <span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ Facebook</span> | <span>✅ Pinterest</span>
         </div>
         
         <form id="form-principal" method="POST">
-            <input type="url" name="enlace" placeholder="Pega el enlace del video o imagen..." required>
+            <div class="input-group">
+                <input type="url" id="input-enlace" name="enlace" placeholder="Pega el enlace del video..." required autocomplete="off">
+                <button type="button" class="btn-pegar" id="btn-pegar" title="Pegar enlace">📋</button>
+            </div>
+            
             <select name="calidad">
                 <option value="alta">Video (Alta Calidad)</option>
                 <option value="media">Video (Media 480p)</option>
@@ -91,12 +110,12 @@ PAGINA_WEB = """
                 <option value="audio">Audio (MP3)</option>
                 <option value="imagen">Solo Miniatura (JPG)</option>
             </select>
-            <button type="submit" class="btn-main" id="btn-generar">Generar Descarga</button>
+            <button type="submit" class="btn-main" id="btn-generar" disabled>Generar Descarga</button>
         </form>
 
         <div class="loader-container" id="pantalla-carga">
             <div class="spinner"></div>
-            <div class="loader-text">Extrayendo archivo original...<br><small style="font-weight: 400;">Esto puede tomar unos segundos</small></div>
+            <div class="loader-text">Procesando archivo...<br><small style="font-weight: 400;">Buscando la mejor calidad</small></div>
         </div>
 
         {% if mensaje_resultado %}
@@ -117,13 +136,16 @@ PAGINA_WEB = """
         {% endif %}
 
         <div class="historial">
-            <h2>Recientes</h2>
+            <div class="historial-header">
+                <h2>Recientes</h2>
+                <button type="button" class="btn-limpiar" id="btn-limpiar">🗑️ Limpiar</button>
+            </div>
             <ul id="lista-historial" class="historial-lista"></ul>
         </div>
     </div>
 
     <script>
-        // Lógica de tema oscuro
+        // 1. TEMA OSCURO
         function toggleDarkMode() {
             const body = document.getElementById('cuerpo');
             body.classList.toggle('dark-mode');
@@ -131,36 +153,76 @@ PAGINA_WEB = """
         }
         if(localStorage.getItem('pdp_theme') === 'dark') { document.getElementById('cuerpo').classList.add('dark-mode'); }
 
-        // Lógica del historial
+        // 2. LÓGICA DE HISTORIAL Y BOTÓN LIMPIAR
         const listaHist = document.getElementById('lista-historial');
-        const datosHist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
-        if(datosHist.length === 0) {
-            listaHist.innerHTML = '<li class="historial-item" style="color: var(--text-secondary); justify-content: center;">No hay descargas recientes.</li>';
-        } else {
-            datosHist.forEach(item => {
-                listaHist.innerHTML += `<li class="historial-item"><span>${item.titulo}</span> <small>${item.fecha}</small></li>`;
-            });
-        }
-
-        // --- LÓGICA DE LA PANTALLA DE CARGA ---
-        document.getElementById('form-principal').addEventListener('submit', function() {
-            // Ocultamos el botón
-            document.getElementById('btn-generar').style.display = 'none';
-            // Mostramos el spinner animado
-            document.getElementById('pantalla-carga').style.display = 'block';
+        const btnLimpiar = document.getElementById('btn-limpiar');
+        
+        function renderizarHistorial() {
+            const datosHist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
+            listaHist.innerHTML = '';
             
-            // Si ya había un resultado anterior en pantalla, lo ocultamos para no confundir
-            const resAnterior = document.getElementById('resultado-servidor');
-            if (resAnterior) {
-                resAnterior.style.display = 'none';
+            if(datosHist.length === 0) {
+                listaHist.innerHTML = '<li class="historial-item" style="color: var(--text-secondary); justify-content: center; border: none;">No hay descargas recientes.</li>';
+                btnLimpiar.style.display = 'none'; // Ocultamos basura si no hay nada
+            } else {
+                btnLimpiar.style.display = 'block'; // Mostramos basura
+                datosHist.forEach(item => {
+                    listaHist.innerHTML += `<li class="historial-item"><span>${item.titulo}</span> <small>${item.fecha}</small></li>`;
+                });
             }
+        }
+        
+        // Cargar al iniciar
+        renderizarHistorial();
+
+        // Acción de limpiar historial
+        btnLimpiar.addEventListener('click', function() {
+            localStorage.removeItem('pdp_historial'); // Borra memoria local
+            renderizarHistorial(); // Refresca pantalla
+        });
+
+        // 3. DETECCIÓN DE ENLACES
+        const inputEnlace = document.getElementById('input-enlace');
+        const btnGenerar = document.getElementById('btn-generar');
+
+        function validarEnlace() {
+            const valor = inputEnlace.value.trim();
+            // Si empieza con http o https, encendemos el botón
+            if(valor.startsWith('http://') || valor.startsWith('https://')) {
+                btnGenerar.disabled = false;
+            } else {
+                btnGenerar.disabled = true;
+            }
+        }
+        
+        // Cada vez que el usuario teclee algo, validamos
+        inputEnlace.addEventListener('input', validarEnlace);
+
+        // 4. BOTÓN DE PEGAR
+        document.getElementById('btn-pegar').addEventListener('click', async function() {
+            try {
+                // Pide permiso para leer el portapapeles y lo pega
+                const texto = await navigator.clipboard.readText();
+                inputEnlace.value = texto;
+                validarEnlace(); // Validamos si lo que pegó es un link
+            } catch (err) {
+                alert('No se pudo acceder al portapapeles. Da clic derecho y pega manualmente.');
+            }
+        });
+
+        // 5. PANTALLA DE CARGA
+        document.getElementById('form-principal').addEventListener('submit', function() {
+            btnGenerar.style.display = 'none';
+            document.getElementById('pantalla-carga').style.display = 'block';
+            const resAnterior = document.getElementById('resultado-servidor');
+            if (resAnterior) resAnterior.style.display = 'none';
         });
     </script>
 </body>
 </html>
 """
 
-# ... [AQUÍ ABAJO SEGUIRÁ TU CÓDIGO PYTHON (app.route, etc.) EXACTAMENTE IGUAL QUE EN TU ÚLTIMA VERSIÓN FUNCIONAL] ...
+# ... [AQUÍ SIGUE TU LÓGICA PYTHON EXACTAMENTE IGUAL] ...
 
 @app.route('/', methods=['GET', 'POST'])
 def inicio():
