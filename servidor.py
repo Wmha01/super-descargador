@@ -5,7 +5,6 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# --- DISEÑO PDP (AHORA CON INDICADOR DE REDES SOCIALES) ---
 PAGINA_WEB = """
 <!DOCTYPE html>
 <html lang="es">
@@ -29,7 +28,6 @@ PAGINA_WEB = """
         .brand { text-align: center; font-size: 32px; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 25px; }
         .brand span { color: var(--accent); }
         
-        /* Redes soportadas */
         .redes-soportadas { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 18px; text-align: center; font-weight: 600; }
         .redes-soportadas span { margin: 0 5px; }
 
@@ -139,20 +137,21 @@ def inicio():
         url = request.form['enlace']
         calidad = request.form['calidad']
         
+        # --- EL FIX DE LOS FORMATOS (FALLBACKS) ---
+        # Si no encuentra 480p, bajará a buscar 'best' y si no, cualquier cosa ('b')
         f_map = {
-            'alta': 'best',
-            'media': 'best[height<=480]',
-            'baja': 'best[height<=360]',
-            'audio': 'bestaudio/best'
+            'alta': 'bestvideo+bestaudio/best/b',
+            'media': 'best[height<=480]/bestvideo+bestaudio/best/b',
+            'baja': 'best[height<=360]/bestvideo+bestaudio/best/b',
+            'audio': 'bestaudio/best/b'
         }
         
-        # --- MOTOR OPTIMIZADO PARA REDES SOCIALES ---
         opciones = {
             'quiet': True,
-            'format': f_map.get(calidad, 'best'),
+            'format': f_map.get(calidad, 'best/b'),
             'skip_download': True,
-            'nocheckcertificate': True, # Ayuda a evadir bloqueos de Facebook/Instagram
-            'ignoreerrors': True, # Si hay un error menor, sigue intentando
+            'nocheckcertificate': True,
+            'ignoreerrors': True,
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
@@ -160,7 +159,6 @@ def inicio():
             with yt_dlp.YoutubeDL(opciones) as ydl:
                 info = ydl.extract_info(url, download=False)
                 
-                # Si es un enlace con varios archivos (ej. un hilo de Twitter o carrusel de IG), agarramos el primero
                 if 'entries' in info:
                     info = info['entries'][0]
                     
