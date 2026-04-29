@@ -192,13 +192,9 @@ def inicio():
             if d_url:
                 final_url = d_url if calidad != 'imagen' else miniatura
                 
-                # PREPARACIÓN SEGURA PARA EL TÚNEL
-                # 1. Empaquetamos la URL para que no se corte con símbolos raros
+                # EMPAQUETADO SEGURO
                 safe_url = urllib.parse.quote(final_url, safe='')
-                # 2. Empaquetamos el título
                 safe_title = urllib.parse.quote(titulo_v, safe='')
-                
-                # Asignamos la extensión correcta
                 ext = 'jpg' if calidad == 'imagen' else ('mp3' if calidad == 'audio' else 'mp4')
                 
                 mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={safe_url}&titulo={safe_title}&ext={ext}" class="btn-descarga">Descargar Ahora</a>'
@@ -209,22 +205,25 @@ def inicio():
 
 @app.route('/descargar')
 def proceso_descarga():
-    video_url = request.args.get('url')
+    # --- AQUÍ ESTÁ LA CORRECCIÓN CLAVE ---
+    encoded_url = request.args.get('url')
+    # DESEMPAQUETAMOS el enlace antes de usarlo
+    video_url = urllib.parse.unquote(encoded_url)
+    
     titulo_raw = request.args.get('titulo', 'Descarga_PDP')
     ext = request.args.get('ext', 'mp4')
     
-    # LIMPIEZA DEL NOMBRE DE ARCHIVO
-    # Solo dejamos letras, números y espacios para que el sistema no explote
+    # LIMPIEZA DEL NOMBRE (Igual que antes, esto funciona)
     titulo_limpio = re.sub(r'[^\w\s-]', '', titulo_raw).strip()
-    # Cambiamos espacios por guiones bajos para que se vea profesional
     titulo_limpio = titulo_limpio.replace(' ', '_')
-    
     if not titulo_limpio:
         titulo_limpio = "Video_PDP"
         
     nombre_final = f"{titulo_limpio}.{ext}"
     
     h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    
+    # Ahora usamos el video_url ya DESEMPAQUETADO
     r = requests.get(video_url, stream=True, headers=h)
     
     def stream():
@@ -234,7 +233,6 @@ def proceso_descarga():
                 
     return Response(stream_with_context(stream()), headers={
         "Content-Disposition": f'attachment; filename="{nombre_final}"',
-        # Aseguramos que se transfiera como un archivo normal
         "Content-Type": r.headers.get('Content-Type', 'application/octet-stream')
     })
 
