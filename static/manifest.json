@@ -1,0 +1,16 @@
+{
+  "name": "PDP - Descarga Pro",
+  "short_name": "PDP Pro",
+  "description": "El mejor descargador de redes sociales.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#28a745",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3041/3041913.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
