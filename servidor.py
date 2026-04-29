@@ -19,8 +19,8 @@ PAGINA_WEB = """
         input, select { width: 100%; box-sizing: border-box; padding: 14px; margin-bottom: 16px; font-size: 15px; border: 1px solid #e5e5e5; border-radius: 10px; background-color: #fcfcfc; }
         button { width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #111; color: white; cursor: pointer; }
         .mensaje { margin-top: 24px; padding: 16px; border-radius: 10px; font-size: 14px; background-color: #f8f9fa; border: 1px solid #eee; }
-        .miniatura { width: 100%; border-radius: 8px; margin-top: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .btn-descarga { display: inline-block; margin-top: 15px; background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; }
+        .miniatura { width: 100%; border-radius: 8px; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -29,11 +29,10 @@ PAGINA_WEB = """
         <form method="POST">
             <input type="url" name="enlace" placeholder="Pega el enlace aquí..." required>
             <select name="tipo_descarga">
-                <option value="video">Video (Alta Calidad)</option>
-                <option value="audio">Audio (MP3)</option>
+                <option value="video">Video / Audio</option>
                 <option value="imagen">Solo Miniatura</option>
             </select>
-            <button type="submit">Generar Enlace</button>
+            <button type="submit">Generar Descarga</button>
         </form>
 
         {% if mensaje_resultado %}
@@ -56,14 +55,12 @@ def inicio():
     if request.method == 'POST':
         url = request.form['enlace']
         tipo = request.form['tipo_descarga']
-        formato = 'best' if tipo != 'audio' else 'bestaudio/best'
         
         opciones = {
             'quiet': True,
-            'format': formato,
+            'format': 'best',
             'skip_download': True,
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
         try:
@@ -73,29 +70,35 @@ def inicio():
                 miniatura = info.get('thumbnail', None)
                 
             if d_url:
-                # Ahora el botón apunta a NUESTRA propia ruta de descarga
-                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={d_url}" class="btn-descarga">Descargar Ahora</a>'
+                # El secreto: Enviamos la URL a nuestra propia ruta /bypass
+                mensaje = f'✨ ¡Listo! <br><br> <a href="/bypass?url={d_url}" class="btn-descarga">Descargar Ahora</a>'
             else:
-                mensaje = "⚠️ No se pudo obtener el video."
+                mensaje = "⚠️ No se encontró un enlace compatible."
         except:
-            mensaje = "⚠️ Error de conexión o enlace inválido."
+            mensaje = "⚠️ Error al procesar. Prueba con otro link."
 
     return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura)
 
-# --- ESTA ES LA FUNCIÓN "TÚNEL" ---
-@app.route('/descargar')
-def descargar():
+@app.route('/bypass')
+def bypass():
     video_url = request.args.get('url')
-    req = requests.get(video_url, stream=True)
+    # Añadimos cabeceras de "identidad falsa" para engañar al servidor del video
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://x.com/'
+    }
     
-    # Creamos una respuesta que va pasando los datos pedacito a pedacito
-    def generar():
-        for chunk in req.iter_content(chunk_size=1024):
+    r = requests.get(video_url, stream=True, headers=headers)
+    
+    def stream():
+        for chunk in r.iter_content(chunk_size=1024):
             yield chunk
             
-    return Response(stream_with_context(generar()), 
-                    headers={"Content-Disposition": "attachment; filename=archivo_descargado.mp4",
-                             "Content-Type": req.headers.get('Content-Type')})
+    return Response(stream_with_context(stream()), 
+                    headers={
+                        "Content-Disposition": "attachment; filename=descarga.mp4",
+                        "Content-Type": r.headers.get('Content-Type')
+                    })
 
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
