@@ -2,3 +2,4 @@ Flask
 yt-dlp
 yt-dlp-ejs
 requests
+curl_cffi
