@@ -2,6 +2,7 @@ import os
 import requests
 import urllib.parse
 import re
+import tempfile
 from flask import Flask, render_template_string, request, Response, stream_with_context
 import yt_dlp
 
@@ -135,21 +136,19 @@ def inicio():
     mensaje = ""
     miniatura = None
     titulo_v = "Archivo Multimedia"
-    info = None
     
     if request.method == 'POST':
-        url = request.form['enlace']
+        url_original = request.form['enlace']
         calidad = request.form['calidad']
         
-        # Filtramos para que yt-dlp priorice mp4 directo, no m3u8
         f_map = {
-            'alta': 'best[ext=mp4]/best',
-            'media': 'best[height<=480][ext=mp4]/best',
-            'baja': 'best[height<=360][ext=mp4]/best',
+            'alta': 'best',
+            'media': 'best[height<=480]/best',
+            'baja': 'best[height<=360]/best',
             'audio': 'bestaudio/best'
         }
         
-        opciones_principales = {
+        opciones = {
             'quiet': True,
             'format': f_map.get(calidad, 'best'),
             'skip_download': True,
@@ -158,21 +157,16 @@ def inicio():
         }
         
         try:
-            with yt_dlp.YoutubeDL(opciones_principales) as ydl:
-                info = ydl.extract_info(url, download=False)
+            with yt_dlp.YoutubeDL(opciones) as ydl:
+                info = ydl.extract_info(url_original, download=False)
         except Exception:
-            opciones_supervivencia = {
-                'quiet': True,
-                'skip_download': True,
-                'nocheckcertificate': True,
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+            opciones_sup = opciones.copy()
             try:
-                with yt_dlp.YoutubeDL(opciones_supervivencia) as ydl:
-                    info = ydl.extract_info(url, download=False)
+                with yt_dlp.YoutubeDL(opciones_sup) as ydl:
+                    info = ydl.extract_info(url_original, download=False)
             except Exception as e2:
                 error_msg = str(e2)
-                mensaje = f"⚠️ No se pudo extraer el video. <br><br><small style='color: #dc3545;'>Detalle: {error_msg[:100]}...</small>"
+                mensaje = f"⚠️ Error: {error_msg[:100]}..."
                 return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje)
 
         if info:
@@ -180,43 +174,45 @@ def inicio():
                 info = info['entries'][0]
             
             d_url = info.get('url')
+            modo_descarga = 'directo'
             
-            # --- EL FILTRO ANTI-M3U8 ---
-            # Si el enlace por defecto es una lista m3u8, lo descartamos inmediatamente
+            # Si el enlace por defecto es una lista de pedacitos (m3u8), activamos Modo Servidor
             if d_url and ('.m3u8' in d_url or 'manifest' in d_url):
-                d_url = None
+                modo_descarga = 'servidor'
             
-            # Si no hay enlace válido, rebuscamos en los formatos ocultos
-            if not d_url and 'formats' in info:
-                # 1. Buscar un archivo .mp4 directo que tenga video y audio
-                for formato in reversed(info['formats']):
-                    f_url = formato.get('url', '')
-                    if f_url and '.m3u8' not in f_url and 'manifest' not in f_url:
-                        if formato.get('vcodec') != 'none' and formato.get('acodec') != 'none':
-                            d_url = f_url
-                            break
-                
-                # 2. Si no encuentra el perfecto, agarramos el primer .mp4 directo que exista
-                if not d_url:
+            # Intentamos buscar un MP4 directo en los formatos ocultos para ahorrar proceso
+            if not d_url or modo_descarga == 'servidor':
+                mp4_encontrado = False
+                if 'formats' in info:
                     for formato in reversed(info['formats']):
                         f_url = formato.get('url', '')
                         if f_url and '.m3u8' not in f_url and 'manifest' not in f_url:
-                            d_url = f_url
-                            break
-                        
+                            if formato.get('vcodec') != 'none' and formato.get('acodec') != 'none':
+                                d_url = f_url
+                                modo_descarga = 'directo'
+                                mp4_encontrado = True
+                                break
+                
+                # Si falló la búsqueda, no nos rendimos: obligamos a usar el Modo Servidor con el link original
+                if not mp4_encontrado:
+                    modo_descarga = 'servidor'
+                    d_url = url_original # Le damos a yt-dlp el link de Pinterest
+                    
             miniatura = info.get('thumbnail')
             titulo_v = info.get('title', 'Video_Descargado')
             
             if d_url:
                 final_url = d_url if calidad != 'imagen' else miniatura
+                if calidad == 'imagen': modo_descarga = 'directo'
                 
                 safe_url = urllib.parse.quote(final_url, safe='')
                 safe_title = urllib.parse.quote(titulo_v, safe='')
                 ext = 'jpg' if calidad == 'imagen' else ('mp3' if calidad == 'audio' else 'mp4')
                 
-                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={safe_url}&titulo={safe_title}&ext={ext}" class="btn-descarga">Descargar Ahora</a>'
+                # Le decimos al botón qué modo usar
+                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={safe_url}&titulo={safe_title}&ext={ext}&modo={modo_descarga}" class="btn-descarga">Descargar Ahora</a>'
             else:
-                mensaje = "⚠️ La plataforma solo ofrece transmisión en vivo (HLS), no archivo directo."
+                mensaje = "⚠️ Fallo crítico al procesar el archivo."
 
     return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura, titulo_v=titulo_v)
 
@@ -224,7 +220,7 @@ def inicio():
 def proceso_descarga():
     encoded_url = request.args.get('url')
     video_url = urllib.parse.unquote(encoded_url)
-    
+    modo = request.args.get('modo', 'directo')
     titulo_raw = request.args.get('titulo', 'Descarga_PDP')
     ext = request.args.get('ext', 'mp4')
     
@@ -235,19 +231,60 @@ def proceso_descarga():
         
     nombre_final = f"{titulo_limpio}.{ext}"
     
-    h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-    
-    r = requests.get(video_url, stream=True, headers=h)
-    
-    def stream():
-        for chunk in r.iter_content(chunk_size=4096): 
-            if chunk:
-                yield chunk
+    # ----------------------------------------------------
+    # CAMINO 1: TÚNEL DIRECTO (Para X, Facebook, etc.)
+    # ----------------------------------------------------
+    if modo == 'directo':
+        h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        r = requests.get(video_url, stream=True, headers=h)
+        
+        def stream():
+            for chunk in r.iter_content(chunk_size=4096): 
+                if chunk: yield chunk
                 
-    return Response(stream_with_context(stream()), headers={
-        "Content-Disposition": f'attachment; filename="{nombre_final}"',
-        "Content-Type": r.headers.get('Content-Type', 'application/octet-stream')
-    })
+        return Response(stream_with_context(stream()), headers={
+            "Content-Disposition": f'attachment; filename="{nombre_final}"',
+            "Content-Type": r.headers.get('Content-Type', 'application/octet-stream')
+        })
+        
+    # ----------------------------------------------------
+    # CAMINO 2: MODO SERVIDOR (Para Pinterest / HLS)
+    # ----------------------------------------------------
+    else:
+        # 1. Preparamos una carpeta temporal en el servidor
+        temp_dir = tempfile.gettempdir()
+        temp_filepath = os.path.join(temp_dir, f"{titulo_limpio}_{os.urandom(4).hex()}.{ext}")
+        
+        # 2. Obligamos al servidor a descargar y unir los pedacitos
+        opciones_descarga = {
+            'quiet': True,
+            'format': 'best',
+            'outtmpl': temp_filepath,
+            'nocheckcertificate': True
+        }
+        
+        try:
+            with yt_dlp.YoutubeDL(opciones_descarga) as ydl:
+                # Descarga el video REAL al disco temporal de Render
+                ydl.download([video_url])
+                
+            # 3. Función mágica: Lee el archivo para enviártelo y luego se autodestruye
+            def generar_y_borrar():
+                try:
+                    with open(temp_filepath, 'rb') as f:
+                        while chunk := f.read(4096):
+                            yield chunk
+                finally:
+                    # Cuando la descarga termina, borramos la evidencia
+                    if os.path.exists(temp_filepath):
+                        os.remove(temp_filepath)
+                        
+            return Response(stream_with_context(generar_y_borrar()), headers={
+                "Content-Disposition": f'attachment; filename="{nombre_final}"',
+                "Content-Type": "video/mp4" if ext == 'mp4' else "application/octet-stream"
+            })
+        except Exception as e:
+            return f"Hubo un error al unir los pedazos en el servidor: {str(e)}", 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
