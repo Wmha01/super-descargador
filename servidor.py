@@ -62,7 +62,7 @@ PAGINA_WEB = """
 <body id="cuerpo">
     <div class="theme-switcher-container">
         <button id="theme-btn" class="theme-btn" onclick="toggleDarkMode()">
-            <svg class="theme-icon moon-icon" viewBox="0 0 24 24"><path d="M12.3 22h-.1c-3.3 0-6.4-1.3-8.7-3.6C1.2 16.1 0 13 0 9.7 0 6.1 2 2.8 5.2 1.2c.3-.2.6-.1.8.1.3.3.3.6.1.9C5.2 4 4.8 5.3 4.8 6.7c0 3.9 3.2 7.1 7.1 7.1.9 0 1.7-.2 2.5-.5.3-.1.6 0 .8.2.2.3.6.1.8-1.2 1.9-3.4 3-5.7 3H9.7c.3 2.1 2.1 3.7 4.2 3.7 1 0 2-.4 2.8-1.1.2-.2.6-.2.8 0 .3.2.3.6.1.8-1.2 1.1-2.9 1.7-4.6 1.7-.1.1-.1.1-.1.1z"/></svg>
+            <svg class="theme-icon moon-icon" viewBox="0 0 24 24"><path d="M12.3 22h-.1c-3.3 0-6.4-1.3-8.7-3.6C1.2 16.1 0 13 0 9.7 0 6.1 2 2.8 5.2 1.2c.3-.2.6-.1.8.1.3.3.3.6.1.9C5.2 4 4.8 5.3 4.8 6.7c0 3.9 3.2 7.1 7.1 7.1.9 0 1.7-.2 2.5-.5.3-.1.6 0 .8.2.2.3.6.1.8-1.2 1.1-2.9 1.7-4.6 1.7-.1.1-.1.1-.1.1z"/></svg>
             <svg class="theme-icon sun-icon" viewBox="0 0 24 24"><path d="M12 18c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6zm0-10c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zM12 4c.6 0 1-.4 1-1V1c0-.6-.4-1-1-1s-1 .4-1 1v2c0 .6.4 1 1 1zM12 20c-.6 0-1 .4-1 1v2c0 .6.4 1 1 1s1-.4 1-1v2c0-.6-.4-1-1-1zM23 11h-2c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1-.4 1-1s-.4-1-1-1zM4 12c0-.6-.4-1-1-1H1c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1-.4 1-1zM19.8 18.4l-1.4 1.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3l1.4-1.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0zM4.2 5.6l-1.4 1.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3L5.6 7c.4-.4.4-1 0-1.4s-1-.4-1.4 0zM18.4 4.2l1.4 1.4c.4.4.4 1 0 1.4s-1 .4-1.4 0L17 5.6c-.4-.4-.4-1 0-1.4s1-.4 1.4 0zM5.6 17L4.2 18.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3l1.4-1.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0z"/></svg>
         </button>
     </div>
@@ -157,11 +157,9 @@ def inicio():
         }
         
         try:
-            # Plan A: Intentar con la calidad que pidió el usuario
             with yt_dlp.YoutubeDL(opciones) as ydl:
                 info = ydl.extract_info(url_original, download=False)
         except Exception:
-            # Plan B: ¡ESTA ES LA CORRECCIÓN! Le decimos que traiga CUALQUIER formato que exista.
             opciones_sup = {
                 'quiet': True,
                 'format': 'best/bestvideo+bestaudio/b/all', 
@@ -184,7 +182,6 @@ def inicio():
             d_url = info.get('url')
             modo_descarga = 'directo'
             
-            # Si el enlace es HLS (.m3u8), lo mandamos al servidor para que una los pedazos
             if d_url and ('.m3u8' in d_url or 'manifest' in d_url):
                 modo_descarga = 'servidor'
             
@@ -200,7 +197,6 @@ def inicio():
                                 mp4_encontrado = True
                                 break
                 
-                # Si todo falla, Modo Servidor al rescate
                 if not mp4_encontrado:
                     modo_descarga = 'servidor'
                     d_url = url_original 
@@ -242,39 +238,4 @@ def proceso_descarga():
         r = requests.get(video_url, stream=True, headers=h)
         
         def stream():
-            for chunk in r.iter_content(chunk_size=4096): 
-                if chunk: yield chunk
-                
-        return Response(stream_with_context(stream()), headers={
-            "Content-Disposition": f'attachment; filename="{nombre_final}"',
-            "Content-Type": r.headers.get('Content-Type', 'application/octet-stream')
-        })
-        
-    else:
-        # MODO SERVIDOR ACTIVO (Une los fragmentos con FFmpeg en el servidor)
-        temp_dir = tempfile.gettempdir()
-        temp_filepath = os.path.join(temp_dir, f"{titulo_limpio}_{os.urandom(4).hex()}.{ext}")
-        
-        opciones_descarga = {
-            'quiet': True,
-            'format': 'best',
-            'outtmpl': temp_filepath,
-            'nocheckcertificate': True
-        }
-        
-        try:
-            with yt_dlp.YoutubeDL(opciones_descarga) as ydl:
-                ydl.download([video_url])
-                
-            def generar_y_borrar():
-                try:
-                    with open(temp_filepath, 'rb') as f:
-                        while chunk := f.read(4096):
-                            yield chunk
-                finally:
-                    if os.path.exists(temp_filepath):
-                        os.remove(temp_filepath)
-                        
-            return Response(stream_with_context(generar_y_borrar()), headers={
-                "Content-Disposition": f'attachment; filename="{nombre_final}"',
-                "Content-Type": "video/mp4" if ext == 'mp4' else "application/
+            for chunk in r.iter_content(chunk_
