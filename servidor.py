@@ -133,50 +133,59 @@ def inicio():
     mensaje = ""
     miniatura = None
     titulo_v = "Archivo Multimedia"
+    d_url = None
+    
     if request.method == 'POST':
         url = request.form['enlace']
         calidad = request.form['calidad']
         
-        # --- SOLUCIÓN: FORZAR UN ARCHIVO ÚNICO CON VIDEO Y AUDIO ('b') ---
+        # Formato universal: Busca la mejor versión y si no, busca CUALQUIER versión disponible
         f_map = {
-            'alta': 'b',
-            'media': 'b[height<=480]/b',
-            'baja': 'b[height<=360]/b',
-            'audio': 'ba/b'
+            'alta': 'best',
+            'media': 'best[height<=480]/best',
+            'baja': 'best[height<=360]/best',
+            'audio': 'bestaudio/best'
         }
         
         opciones = {
             'quiet': True,
-            'format': f_map.get(calidad, 'b'),
+            'format': f_map.get(calidad, 'best'),
             'skip_download': True,
             'nocheckcertificate': True,
-            'ignoreerrors': True,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         
         try:
             with yt_dlp.YoutubeDL(opciones) as ydl:
+                # Si falla aquí, saltará directamente al 'except'
                 info = ydl.extract_info(url, download=False)
                 
-                if 'entries' in info:
-                    info = info['entries'][0]
-                
-                # Búsqueda agresiva del enlace (Por si yt-dlp lo esconde)
-                d_url = info.get('url')
-                if not d_url and 'formats' in info and len(info['formats']) > 0:
-                    # Si no lo da directo, tomamos el último formato de la lista interna
-                    d_url = info['formats'][-1].get('url')
+                # Prevenir colapso si la info viene vacía
+                if info:
+                    if 'entries' in info and len(info['entries']) > 0:
+                        info = info['entries'][0]
                     
-                miniatura = info.get('thumbnail')
-                titulo_v = info.get('title', 'Video descargado')
+                    # Extracción del enlace principal
+                    d_url = info.get('url')
+                    
+                    # Extracción súper agresiva si 'url' viene oculto
+                    if not d_url and 'formats' in info:
+                        if len(info['formats']) > 0:
+                            d_url = info['formats'][-1].get('url')
+                            
+                    miniatura = info.get('thumbnail')
+                    titulo_v = info.get('title', 'Video descargado')
                 
             if d_url:
                 final_url = d_url if calidad != 'imagen' else miniatura
                 mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={final_url}" class="btn-descarga">Descargar Ahora</a>'
             else:
-                mensaje = "⚠️ La plataforma bloqueó la extracción o el perfil es privado."
-        except:
-            mensaje = "⚠️ Error al conectar. Revisa que el enlace sea de un post público."
+                mensaje = "⚠️ La plataforma ocultó el archivo. Intenta con otra calidad."
+                
+        except Exception as e:
+            # AHORA SÍ: El chivato nos dirá exactamente por qué Pinterest llora
+            error_msg = str(e)
+            mensaje = f"⚠️ Falló la extracción. <br><br><small style='color: #dc3545;'>Detalle técnico: {error_msg[:120]}...</small>"
 
     return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura, titulo_v=titulo_v)
 
