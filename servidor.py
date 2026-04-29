@@ -39,9 +39,10 @@ PAGINA_WEB = """
         button.btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--btn-bg); color: var(--btn-text); font-weight: 600; cursor: pointer; font-size: 16px; transition: 0.2s; }
         button.btn-main:hover { opacity: 0.9; }
         
-        .resultado { margin-top: 30px; padding: 25px; border-radius: 18px; background: var(--bg-body); border: 1px solid var(--border-color); text-align: center; }
+        .resultado { margin-top: 30px; padding: 25px; border-radius: 18px; background: var(--bg-body); border: 1px solid var(--border-color); text-align: center; animation: fadeIn 0.5s ease; }
         .miniatura { width: 100%; border-radius: 14px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .btn-descarga { display: block; margin-top: 20px; background: var(--accent); color: white; padding: 14px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 15px; }
+        .btn-descarga { display: block; margin-top: 20px; background: var(--accent); color: white; padding: 14px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 15px; transition: 0.2s; }
+        .btn-descarga:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); }
         
         .historial { margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px; }
         .historial h2 { font-size: 18px; font-weight: 600; margin-bottom: 15px; color: var(--text-secondary); }
@@ -57,12 +58,19 @@ PAGINA_WEB = """
         body.dark-mode .theme-btn .sun-icon { display: block; }
         body.dark-mode .theme-btn .moon-icon { display: none; }
         .theme-icon { fill: currentColor; width: 22px; height: 22px; }
+
+        /* --- NUEVO ESTILO DE CARGA --- */
+        .loader-container { display: none; text-align: center; margin-top: 20px; padding: 20px; border-radius: 14px; background: var(--bg-body); border: 1px solid var(--border-color); }
+        .spinner { width: 36px; height: 36px; border: 4px solid var(--border-color); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader-text { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body id="cuerpo">
     <div class="theme-switcher-container">
         <button id="theme-btn" class="theme-btn" onclick="toggleDarkMode()">
-            <svg class="theme-icon moon-icon" viewBox="0 0 24 24"><path d="M12.3 22h-.1c-3.3 0-6.4-1.3-8.7-3.6C1.2 16.1 0 13 0 9.7 0 6.1 2 2.8 5.2 1.2c.3-.2.6-.1.8.1.3.3.3.6.1.9C5.2 4 4.8 5.3 4.8 6.7c0 3.9 3.2 7.1 7.1 7.1.9 0 1.7-.2 2.5-.5.3-.1.6 0 .8.2.2.3.6.1.8-1.2 1.1-2.9 1.7-4.6 1.7-.1.1-.1.1-.1.1z"/></svg>
+            <svg class="theme-icon moon-icon" viewBox="0 0 24 24"><path d="M12.3 22h-.1c-3.3 0-6.4-1.3-8.7-3.6C1.2 16.1 0 13 0 9.7 0 6.1 2 2.8 5.2 1.2c.3-.2.6-.1.8.1.3.3.3.6.1.9C5.2 4 4.8 5.3 4.8 6.7c0 3.9 3.2 7.1 7.1 7.1.9 0 1.7-.2 2.5-.5.3-.1.6 0 .8.2.2.3.6.1.8-1.2 1.9-3.4 3-5.7 3H9.7c.3 2.1 2.1 3.7 4.2 3.7 1 0 2-.4 2.8-1.1.2-.2.6-.2.8 0 .3.2.3.6.1.8-1.2 1.1-2.9 1.7-4.6 1.7-.1.1-.1.1-.1.1z"/></svg>
             <svg class="theme-icon sun-icon" viewBox="0 0 24 24"><path d="M12 18c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6zm0-10c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4zM12 4c.6 0 1-.4 1-1V1c0-.6-.4-1-1-1s-1 .4-1 1v2c0 .6.4 1 1 1zM12 20c-.6 0-1 .4-1 1v2c0 .6.4 1 1 1s1-.4 1-1v2c0-.6-.4-1-1-1zM23 11h-2c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1-.4 1-1s-.4-1-1-1zM4 12c0-.6-.4-1-1-1H1c-.6 0-1 .4-1 1s.4 1 1 1h2c.6 0 1-.4 1-1zM19.8 18.4l-1.4 1.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3l1.4-1.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0zM4.2 5.6l-1.4 1.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3L5.6 7c.4-.4.4-1 0-1.4s-1-.4-1.4 0zM18.4 4.2l1.4 1.4c.4.4.4 1 0 1.4s-1 .4-1.4 0L17 5.6c-.4-.4-.4-1 0-1.4s1-.4 1.4 0zM5.6 17L4.2 18.4c-.4.4-.4 1 0 1.4.2.2.5.3.7.3s.5-.1.7-.3l1.4-1.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0z"/></svg>
         </button>
     </div>
@@ -71,10 +79,10 @@ PAGINA_WEB = """
         <div class="brand">P<span>D</span>P</div>
         
         <div class="redes-soportadas">
-            <span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ Facebook</span> | <span>✅ Pinterest</span>
+            <span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ Facebook</span>
         </div>
         
-        <form method="POST">
+        <form id="form-principal" method="POST">
             <input type="url" name="enlace" placeholder="Pega el enlace del video o imagen..." required>
             <select name="calidad">
                 <option value="alta">Video (Alta Calidad)</option>
@@ -83,11 +91,16 @@ PAGINA_WEB = """
                 <option value="audio">Audio (MP3)</option>
                 <option value="imagen">Solo Miniatura (JPG)</option>
             </select>
-            <button type="submit" class="btn-main">Generar Descarga</button>
+            <button type="submit" class="btn-main" id="btn-generar">Generar Descarga</button>
         </form>
 
+        <div class="loader-container" id="pantalla-carga">
+            <div class="spinner"></div>
+            <div class="loader-text">Extrayendo archivo original...<br><small style="font-weight: 400;">Esto puede tomar unos segundos</small></div>
+        </div>
+
         {% if mensaje_resultado %}
-            <div class="resultado">
+            <div class="resultado" id="resultado-servidor">
                 {{ mensaje_resultado | safe }}
                 {% if miniatura_url %}
                     <img src="{{ miniatura_url }}" class="miniatura">
@@ -110,6 +123,7 @@ PAGINA_WEB = """
     </div>
 
     <script>
+        // Lógica de tema oscuro
         function toggleDarkMode() {
             const body = document.getElementById('cuerpo');
             body.classList.toggle('dark-mode');
@@ -117,6 +131,7 @@ PAGINA_WEB = """
         }
         if(localStorage.getItem('pdp_theme') === 'dark') { document.getElementById('cuerpo').classList.add('dark-mode'); }
 
+        // Lógica del historial
         const listaHist = document.getElementById('lista-historial');
         const datosHist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
         if(datosHist.length === 0) {
@@ -126,10 +141,26 @@ PAGINA_WEB = """
                 listaHist.innerHTML += `<li class="historial-item"><span>${item.titulo}</span> <small>${item.fecha}</small></li>`;
             });
         }
+
+        // --- LÓGICA DE LA PANTALLA DE CARGA ---
+        document.getElementById('form-principal').addEventListener('submit', function() {
+            // Ocultamos el botón
+            document.getElementById('btn-generar').style.display = 'none';
+            // Mostramos el spinner animado
+            document.getElementById('pantalla-carga').style.display = 'block';
+            
+            // Si ya había un resultado anterior en pantalla, lo ocultamos para no confundir
+            const resAnterior = document.getElementById('resultado-servidor');
+            if (resAnterior) {
+                resAnterior.style.display = 'none';
+            }
+        });
     </script>
 </body>
 </html>
 """
+
+# ... [AQUÍ ABAJO SEGUIRÁ TU CÓDIGO PYTHON (app.route, etc.) EXACTAMENTE IGUAL QUE EN TU ÚLTIMA VERSIÓN FUNCIONAL] ...
 
 @app.route('/', methods=['GET', 'POST'])
 def inicio():
