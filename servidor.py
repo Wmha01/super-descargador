@@ -3,35 +3,30 @@ import requests
 import urllib.parse
 import re
 import tempfile
-from flask import Flask, render_template_string, request, Response, stream_with_context, jsonify
+from flask import Flask, render_template, request, Response, stream_with_context, jsonify
 import yt_dlp
 
-app = Flask(__name__)
+# ==========================================
+# CONFIGURACIÓN DE RUTAS (GPS DEL SERVIDOR)
+# ==========================================
+directorio_base = os.path.abspath(os.path.dirname(__file__))
+directorio_templates = os.path.join(directorio_base, 'templates')
+directorio_static = os.path.join(directorio_base, 'static')
 
-# CONFIGURACIÓN Y LÍMITES
-LIMITE_DURACION = 1200  
+app = Flask(__name__, 
+            template_folder=directorio_templates,
+            static_folder=directorio_static)
+
+# ==========================================
+# CONFIGURACIÓN Y LÍMITES (SEGURIDAD)
+# ==========================================
+LIMITE_DURACION = 1200  # 20 minutos
 LIMITE_PESO_MB = 150    
 
 @app.route('/')
 def index():
-    # MODO DE FUERZA BRUTA: Leemos el archivo saltándonos el buscador de Flask
-    ruta_base = os.path.dirname(os.path.abspath(__file__))
-    ruta_html = os.path.join(ruta_base, 'templates', 'index.html')
-    
-    try:
-        with open(ruta_html, 'r', encoding='utf-8') as archivo:
-            contenido_html = archivo.read()
-        return render_template_string(contenido_html)
-    except Exception as e:
-        # Si el archivo misteriosamente no está, te muestro qué archivos SÍ existen
-        archivos_visibles = str(os.listdir(ruta_base))
-        return f"""
-        <div style="font-family: sans-serif; padding: 20px; color: #333;">
-            <h2 style="color: #dc3545;">❌ El servidor no encuentra tu diseño</h2>
-            <p><strong>Buscó exactamente en:</strong> {ruta_html}</p>
-            <p><strong>Archivos que el servidor SÍ puede ver ahora mismo:</strong><br> {archivos_visibles}</p>
-        </div>
-        """
+    # Gracias a la configuración de arriba, Flask encuentra esto automáticamente
+    return render_template('index.html')
 
 @app.route('/procesar', methods=['POST'])
 def procesar_enlace():
@@ -57,6 +52,7 @@ def procesar_enlace():
             d_url = info.get('url')
             url_minuscula = url.lower()
             
+            # MODO SERVIDOR FORZADO PARA TIKTOK Y ARCHIVOS FRAGMENTADOS
             if not d_url or '.m3u8' in d_url or 'tiktok' in url_minuscula:
                 modo = 'servidor'
                 url_a_empaquetar = url
