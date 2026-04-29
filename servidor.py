@@ -141,10 +141,11 @@ def inicio():
         url = request.form['enlace']
         calidad = request.form['calidad']
         
+        # Filtramos para que yt-dlp priorice mp4 directo, no m3u8
         f_map = {
-            'alta': 'best',
-            'media': 'best[height<=480]/best',
-            'baja': 'best[height<=360]/best',
+            'alta': 'best[ext=mp4]/best',
+            'media': 'best[height<=480][ext=mp4]/best',
+            'baja': 'best[height<=360][ext=mp4]/best',
             'audio': 'bestaudio/best'
         }
         
@@ -159,7 +160,7 @@ def inicio():
         try:
             with yt_dlp.YoutubeDL(opciones_principales) as ydl:
                 info = ydl.extract_info(url, download=False)
-        except Exception as e:
+        except Exception:
             opciones_supervivencia = {
                 'quiet': True,
                 'skip_download': True,
@@ -180,11 +181,28 @@ def inicio():
             
             d_url = info.get('url')
             
+            # --- EL FILTRO ANTI-M3U8 ---
+            # Si el enlace por defecto es una lista m3u8, lo descartamos inmediatamente
+            if d_url and ('.m3u8' in d_url or 'manifest' in d_url):
+                d_url = None
+            
+            # Si no hay enlace válido, rebuscamos en los formatos ocultos
             if not d_url and 'formats' in info:
+                # 1. Buscar un archivo .mp4 directo que tenga video y audio
                 for formato in reversed(info['formats']):
-                    if formato.get('url') and 'manifest' not in formato.get('url'):
-                        d_url = formato.get('url')
-                        break
+                    f_url = formato.get('url', '')
+                    if f_url and '.m3u8' not in f_url and 'manifest' not in f_url:
+                        if formato.get('vcodec') != 'none' and formato.get('acodec') != 'none':
+                            d_url = f_url
+                            break
+                
+                # 2. Si no encuentra el perfecto, agarramos el primer .mp4 directo que exista
+                if not d_url:
+                    for formato in reversed(info['formats']):
+                        f_url = formato.get('url', '')
+                        if f_url and '.m3u8' not in f_url and 'manifest' not in f_url:
+                            d_url = f_url
+                            break
                         
             miniatura = info.get('thumbnail')
             titulo_v = info.get('title', 'Video_Descargado')
@@ -192,28 +210,24 @@ def inicio():
             if d_url:
                 final_url = d_url if calidad != 'imagen' else miniatura
                 
-                # EMPAQUETADO SEGURO
                 safe_url = urllib.parse.quote(final_url, safe='')
                 safe_title = urllib.parse.quote(titulo_v, safe='')
                 ext = 'jpg' if calidad == 'imagen' else ('mp3' if calidad == 'audio' else 'mp4')
                 
                 mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={safe_url}&titulo={safe_title}&ext={ext}" class="btn-descarga">Descargar Ahora</a>'
             else:
-                mensaje = "⚠️ El formato de este post es extraño. Intenta con otro enlace."
+                mensaje = "⚠️ La plataforma solo ofrece transmisión en vivo (HLS), no archivo directo."
 
     return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura, titulo_v=titulo_v)
 
 @app.route('/descargar')
 def proceso_descarga():
-    # --- AQUÍ ESTÁ LA CORRECCIÓN CLAVE ---
     encoded_url = request.args.get('url')
-    # DESEMPAQUETAMOS el enlace antes de usarlo
     video_url = urllib.parse.unquote(encoded_url)
     
     titulo_raw = request.args.get('titulo', 'Descarga_PDP')
     ext = request.args.get('ext', 'mp4')
     
-    # LIMPIEZA DEL NOMBRE (Igual que antes, esto funciona)
     titulo_limpio = re.sub(r'[^\w\s-]', '', titulo_raw).strip()
     titulo_limpio = titulo_limpio.replace(' ', '_')
     if not titulo_limpio:
@@ -223,7 +237,6 @@ def proceso_descarga():
     
     h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     
-    # Ahora usamos el video_url ya DESEMPAQUETADO
     r = requests.get(video_url, stream=True, headers=h)
     
     def stream():
