@@ -133,13 +133,12 @@ def inicio():
     mensaje = ""
     miniatura = None
     titulo_v = "Archivo Multimedia"
-    d_url = None
+    info = None
     
     if request.method == 'POST':
         url = request.form['enlace']
         calidad = request.form['calidad']
         
-        # Formato universal: Busca la mejor versión y si no, busca CUALQUIER versión disponible
         f_map = {
             'alta': 'best',
             'media': 'best[height<=480]/best',
@@ -147,7 +146,7 @@ def inicio():
             'audio': 'bestaudio/best'
         }
         
-        opciones = {
+        opciones_principales = {
             'quiet': True,
             'format': f_map.get(calidad, 'best'),
             'skip_download': True,
@@ -156,36 +155,51 @@ def inicio():
         }
         
         try:
-            with yt_dlp.YoutubeDL(opciones) as ydl:
-                # Si falla aquí, saltará directamente al 'except'
+            # INTENTO 1: Con la calidad que pidió el usuario
+            with yt_dlp.YoutubeDL(opciones_principales) as ydl:
                 info = ydl.extract_info(url, download=False)
-                
-                # Prevenir colapso si la info viene vacía
-                if info:
-                    if 'entries' in info and len(info['entries']) > 0:
-                        info = info['entries'][0]
-                    
-                    # Extracción del enlace principal
-                    d_url = info.get('url')
-                    
-                    # Extracción súper agresiva si 'url' viene oculto
-                    if not d_url and 'formats' in info:
-                        if len(info['formats']) > 0:
-                            d_url = info['formats'][-1].get('url')
-                            
-                    miniatura = info.get('thumbnail')
-                    titulo_v = info.get('title', 'Video descargado')
-                
+        except Exception as e:
+            # INTENTO 2 (EL PLAN B): Si falla, quitamos el filtro de formato
+            # Esto le dice a yt-dlp: "Solo dame cualquier formato que encuentres, no importa la calidad"
+            opciones_supervivencia = {
+                'quiet': True,
+                'skip_download': True,
+                'nocheckcertificate': True,
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            try:
+                with yt_dlp.YoutubeDL(opciones_supervivencia) as ydl:
+                    info = ydl.extract_info(url, download=False)
+            except Exception as e2:
+                # Si esto falla, ya es problema del enlace, no de nuestra app
+                error_msg = str(e2)
+                mensaje = f"⚠️ No se pudo extraer el video. <br><br><small style='color: #dc3545;'>Detalle: {error_msg[:100]}...</small>"
+                return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje)
+
+        # --- LÓGICA DE EXTRACCIÓN SÚPER AGRESIVA ---
+        if info:
+            if 'entries' in info and len(info['entries']) > 0:
+                info = info['entries'][0]
+            
+            d_url = info.get('url')
+            
+            # Si el enlace viene oculto, rebuscamos en la caja negra de formatos
+            if not d_url and 'formats' in info:
+                # Buscar de abajo hacia arriba (usualmente los últimos tienen mejor calidad)
+                for formato in reversed(info['formats']):
+                    # Nos aseguramos de agarrar uno que tenga enlace real
+                    if formato.get('url') and 'manifest' not in formato.get('url'):
+                        d_url = formato.get('url')
+                        break
+                        
+            miniatura = info.get('thumbnail')
+            titulo_v = info.get('title', 'Video descargado')
+            
             if d_url:
                 final_url = d_url if calidad != 'imagen' else miniatura
                 mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={final_url}" class="btn-descarga">Descargar Ahora</a>'
             else:
-                mensaje = "⚠️ La plataforma ocultó el archivo. Intenta con otra calidad."
-                
-        except Exception as e:
-            # AHORA SÍ: El chivato nos dirá exactamente por qué Pinterest llora
-            error_msg = str(e)
-            mensaje = f"⚠️ Falló la extracción. <br><br><small style='color: #dc3545;'>Detalle técnico: {error_msg[:120]}...</small>"
+                mensaje = "⚠️ El formato de este post es extraño. Intenta con otro enlace."
 
     return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura, titulo_v=titulo_v)
 
