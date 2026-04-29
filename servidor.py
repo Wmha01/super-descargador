@@ -5,100 +5,149 @@ from flask import Flask, render_template_string, request, Response, stream_with_
 
 app = Flask(__name__)
 
+# --- DISEÑO "PRO" CON MODO OSCURO E HISTORIAL ---
 PAGINA_WEB = """
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Súper Descargador</title>
+    <title>Súper Descargador Pro</title>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: #fafafa; color: #222; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .contenedor { background: white; max-width: 400px; width: 100%; padding: 40px 30px; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.04); text-align: center; margin-top: 8vh; }
-        h1 { font-size: 24px; margin-bottom: 25px; font-weight: 600; letter-spacing: -0.5px; }
-        input, select { width: 100%; box-sizing: border-box; padding: 14px; margin-bottom: 16px; font-size: 15px; border: 1px solid #e5e5e5; border-radius: 10px; background-color: #fcfcfc; }
-        button { width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #111; color: white; cursor: pointer; }
-        .mensaje { margin-top: 24px; padding: 16px; border-radius: 10px; font-size: 14px; background-color: #f8f9fa; border: 1px solid #eee; }
-        .btn-descarga { display: inline-block; margin-top: 15px; background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; }
-        .miniatura { width: 100%; border-radius: 8px; margin-top: 15px; }
+        :root {
+            --bg: #ffffff; --text: #111; --box: #f8f9fa; --border: #e5e5e5; --accent: #007bff;
+        }
+        body.dark-mode {
+            --bg: #121212; --text: #e0e0e0; --box: #1e1e1e; --border: #333; --accent: #375a7f;
+        }
+        body { font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
+        .contenedor { max-width: 500px; margin: 40px auto; background: var(--box); padding: 30px; border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h1 { text-align: center; font-size: 28px; margin-bottom: 20px; letter-spacing: -1px; }
+        
+        .dark-mode-toggle { position: fixed; top: 20px; right: 20px; cursor: pointer; padding: 10px; border-radius: 50%; background: var(--box); border: 1px solid var(--border); font-size: 20px; }
+        
+        input, select { width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; border: none; border-radius: 12px; background: #000; color: #fff; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
+        body.dark-mode button { background: #fff; color: #000; }
+        
+        .resultado { margin-top: 25px; padding: 20px; border-radius: 15px; background: var(--bg); border: 1px solid var(--border); text-align: center; }
+        .miniatura { width: 100%; border-radius: 12px; margin-top: 15px; }
+        .btn-descarga { display: block; margin-top: 15px; background: #28a745; color: white; padding: 12px; text-decoration: none; border-radius: 10px; font-weight: bold; }
+        
+        .historial { margin-top: 40px; }
+        .historial h2 { font-size: 18px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .historial-lista { list-style: none; padding: 0; }
+        .historial-item { padding: 10px; border-bottom: 1px solid var(--border); font-size: 14px; display: flex; justify-content: space-between; }
+        .historial-item a { color: var(--accent); text-decoration: none; }
     </style>
 </head>
-<body>
+<body id="cuerpo">
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌓</button>
+    
     <div class="contenedor">
-        <h1>Súper Descargador</h1>
+        <h1>Súper Descargador <span style="color: #28a745;">Pro</span></h1>
+        
         <form method="POST">
             <input type="url" name="enlace" placeholder="Pega el enlace aquí..." required>
-            <select name="tipo_descarga">
-                <option value="video">Video / Audio</option>
-                <option value="imagen">Solo Miniatura</option>
+            <select name="calidad">
+                <option value="alta">Alta Calidad (1080p/720p)</option>
+                <option value="media">Calidad Media (480p)</option>
+                <option value="baja">Calidad Baja (360p)</option>
+                <option value="audio">Solo Audio (MP3)</option>
+                <option value="imagen">Solo Miniatura (JPG)</option>
             </select>
             <button type="submit">Generar Descarga</button>
         </form>
 
-        {% if mensaje_resultado %}
-            <div class="mensaje">
-                {{ mensaje_resultado | safe }}
-                {% if miniatura_url %}
-                    <img src="{{ miniatura_url }}" class="miniatura">
-                {% endif %}
+        {% if mensaje %}
+            <div class="resultado">
+                {{ mensaje | safe }}
+                {% if mini %}<img src="{{ mini }}" class="miniatura">{% endif %}
+                <script>
+                    // Guardar en historial de JS
+                    let hist = JSON.parse(localStorage.getItem('descargas') || '[]');
+                    hist.unshift({titulo: "{{ tit }}", fecha: new Date().toLocaleDateString()});
+                    localStorage.setItem('descargas', JSON.stringify(hist.slice(0, 5)));
+                </script>
             </div>
         {% endif %}
+
+        <div class="historial">
+            <h2>Recientes</h2>
+            <ul id="lista-historial" class="historial-lista"></ul>
+        </div>
     </div>
+
+    <script>
+        function toggleDarkMode() {
+            document.getElementById('cuerpo').classList.toggle('dark-mode');
+            localStorage.setItem('dark', document.getElementById('cuerpo').classList.contains('dark-mode'));
+        }
+        if(localStorage.getItem('dark') === 'true') toggleDarkMode();
+
+        // Cargar historial
+        const lista = document.getElementById('lista-historial');
+        const datos = JSON.parse(localStorage.getItem('descargas') || '[]');
+        datos.forEach(item => {
+            lista.innerHTML += `<li class="historial-item"><span>${item.titulo}</span> <small>${item.fecha}</small></li>`;
+        });
+    </script>
 </body>
 </html>
 """
 
 @app.route('/', methods=['GET', 'POST'])
 def inicio():
-    mensaje = ""
-    miniatura = None
+    res, mini, tit = None, None, "Video"
     if request.method == 'POST':
         url = request.form['enlace']
+        cal = request.form['calidad']
+        
+        # Mapeo de calidades
+        f_map = {
+            'alta': 'best',
+            'media': 'best[height<=480]',
+            'baja': 'best[height<=360]',
+            'audio': 'bestaudio/best'
+        }
         
         opciones = {
-            'quiet': True,
-            'format': 'best',
-            'skip_download': True,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            'quiet': True, 'skip_download': True,
+            'format': f_map.get(cal, 'best'),
+            # ESTRATEGIA DEFINITIVA PARA YT EN LA NUBE: Usar cliente iOS/Android
+            'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
+            'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
         }
         
         try:
             with yt_dlp.YoutubeDL(opciones) as ydl:
                 info = ydl.extract_info(url, download=False)
                 d_url = info.get('url', None)
-                miniatura = info.get('thumbnail', None)
+                mini = info.get('thumbnail', None)
+                tit = info.get('title', 'Video descargado')
                 
             if d_url:
-                # AQUÍ ESTÁ EL CAMBIO: Ahora coincide con la ruta /descargar
-                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={d_url}" class="btn-descarga">Descargar Ahora</a>'
+                final_url = d_url if cal != 'imagen' else mini
+                res = f'✨ ¡Listo! <br> <a href="/tunel?url={final_url}" class="btn-descarga">Descargar Ahora</a>'
             else:
-                mensaje = "⚠️ No se encontró un enlace compatible."
+                res = "⚠️ YouTube bloqueó la IP. Prueba con Facebook/X o un video de YT menos popular."
         except:
-            mensaje = "⚠️ Error al procesar. Prueba con otro link."
+            res = "⚠️ Error al procesar el enlace."
 
-    return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura)
+    return render_template_string(PAGINA_WEB, mensaje=res, mini=mini, tit=tit)
 
-# ESTA RUTA AHORA SE LLAMA /descargar PARA QUE EL NAVEGADOR LA ENCUENTRE
-@app.route('/descargar')
-def proceso_descarga():
-    video_url = request.args.get('url')
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    }
-    
-    # El servidor de Render hace la petición y te pasa los datos a ti
-    r = requests.get(video_url, stream=True, headers=headers)
-    
-    def stream():
-        for chunk in r.iter_content(chunk_size=1024):
-            yield chunk
-            
-    return Response(stream_with_context(stream()), 
-                    headers={
-                        "Content-Disposition": "attachment; filename=descarga.mp4",
-                        "Content-Type": r.headers.get('Content-Type')
-                    })
+@app.route('/tunel')
+def tunel():
+    v_url = request.args.get('url')
+    # Fingimos ser un navegador para el bypass final
+    h = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    r = requests.get(v_url, stream=True, headers=h)
+    def s():
+        for chunk in r.iter_content(chunk_size=4096): yield chunk
+    return Response(stream_with_context(s()), headers={
+        "Content-Disposition": "attachment; filename=archivo_pdp.mp4",
+        "Content-Type": r.headers.get('Content-Type')
+    })
 
 if __name__ == '__main__':
-    puerto = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=puerto)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
