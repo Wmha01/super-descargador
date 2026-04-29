@@ -1,6 +1,7 @@
 import os
 import yt_dlp
-from flask import Flask, render_template_string, request
+import requests
+from flask import Flask, render_template_string, request, Response, stream_with_context
 
 app = Flask(__name__)
 
@@ -17,7 +18,7 @@ PAGINA_WEB = """
         h1 { font-size: 24px; margin-bottom: 25px; font-weight: 600; letter-spacing: -0.5px; }
         input, select { width: 100%; box-sizing: border-box; padding: 14px; margin-bottom: 16px; font-size: 15px; border: 1px solid #e5e5e5; border-radius: 10px; background-color: #fcfcfc; }
         button { width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border-radius: 10px; border: none; background-color: #111; color: white; cursor: pointer; }
-        .mensaje { margin-top: 24px; padding: 16px; border-radius: 10px; font-size: 14px; background-color: #f8f9fa; border: 1px solid #eee; word-break: break-all; }
+        .mensaje { margin-top: 24px; padding: 16px; border-radius: 10px; font-size: 14px; background-color: #f8f9fa; border: 1px solid #eee; }
         .miniatura { width: 100%; border-radius: 8px; margin-top: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .btn-descarga { display: inline-block; margin-top: 15px; background-color: #28a745; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; font-weight: bold; }
     </style>
@@ -52,39 +53,49 @@ PAGINA_WEB = """
 def inicio():
     mensaje = ""
     miniatura = None
-    
     if request.method == 'POST':
         url = request.form['enlace']
         tipo = request.form['tipo_descarga']
-        
-        formato = 'best'
-        if tipo == 'audio': formato = 'bestaudio/best'
+        formato = 'best' if tipo != 'audio' else 'bestaudio/best'
         
         opciones = {
             'quiet': True,
-            'js_runtimes': {'node': {}},
             'format': formato,
             'skip_download': True,
-            'nocheckcertificate': True,
-# --- NUEVA ESTRATEGIA ANTIBOT ---
             'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
-            'user_agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36'        }
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        }
         
         try:
             with yt_dlp.YoutubeDL(opciones) as ydl:
                 info = ydl.extract_info(url, download=False)
-                download_url = info.get('url', None)
+                d_url = info.get('url', None)
                 miniatura = info.get('thumbnail', None)
                 
-            if download_url:
-                if tipo == 'imagen': download_url = miniatura
-                mensaje = f'✨ ¡Listo! <br><br> <a href="{download_url}" download="video.mp4" class="btn-descarga">Click para Descargar</a>'
+            if d_url:
+                # Ahora el botón apunta a NUESTRA propia ruta de descarga
+                mensaje = f'✨ ¡Listo! <br><br> <a href="/descargar?url={d_url}" class="btn-descarga">Descargar Ahora</a>'
             else:
-                mensaje = "⚠️ YouTube bloqueó la petición. Intenta con otro enlace."
-        except Exception as e:
-            mensaje = f"⚠️ Error: Enlace no soportado."
+                mensaje = "⚠️ No se pudo obtener el video."
+        except:
+            mensaje = "⚠️ Error de conexión o enlace inválido."
 
     return render_template_string(PAGINA_WEB, mensaje_resultado=mensaje, miniatura_url=miniatura)
+
+# --- ESTA ES LA FUNCIÓN "TÚNEL" ---
+@app.route('/descargar')
+def descargar():
+    video_url = request.args.get('url')
+    req = requests.get(video_url, stream=True)
+    
+    # Creamos una respuesta que va pasando los datos pedacito a pedacito
+    def generar():
+        for chunk in req.iter_content(chunk_size=1024):
+            yield chunk
+            
+    return Response(stream_with_context(generar()), 
+                    headers={"Content-Disposition": "attachment; filename=archivo_descargado.mp4",
+                             "Content-Type": req.headers.get('Content-Type')})
 
 if __name__ == '__main__':
     puerto = int(os.environ.get("PORT", 5000))
