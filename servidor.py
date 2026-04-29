@@ -11,8 +11,8 @@ app = Flask(__name__)
 # ==========================================
 # CONFIGURACIÓN Y LÍMITES (SEGURIDAD)
 # ==========================================
-LIMITE_DURACION = 1200  # 20 minutos (en segundos)
-LIMITE_PESO_MB = 150    # 150 Megabytes aproximados
+LIMITE_DURACION = 1200  
+LIMITE_PESO_MB = 150    
 
 # ==========================================
 # DISEÑO DE LA INTERFAZ (HTML/CSS/JS)
@@ -50,13 +50,11 @@ PAGINA_WEB = """
         
         .btn-pegar { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 14px; padding: 0 16px; cursor: pointer; }
 
-        /* Estilos de resultado */
         #resultado-dinamico { margin-top: 30px; display: none; }
         .resultado-card { padding: 25px; border-radius: 18px; background: var(--bg-body); border: 1px solid var(--border-color); text-align: center; animation: fadeIn 0.5s ease; }
         .miniatura { width: 100%; border-radius: 14px; margin-top: 15px; }
         .btn-descarga { display: block; margin-top: 20px; background: var(--accent); color: white; padding: 14px; text-decoration: none; border-radius: 12px; font-weight: 600; }
         
-        /* Loader */
         #pantalla-carga { display: none; text-align: center; margin-top: 20px; }
         .spinner { width: 36px; height: 36px; border: 4px solid var(--border-color); border-top: 4px solid var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -75,7 +73,7 @@ PAGINA_WEB = """
 <body id="cuerpo">
     <div class="contenedor">
         <div class="brand">P<span>D</span>P</div>
-        <div class="redes-soportadas"><span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ Facebook</span></div>
+        <div class="redes-soportadas"><span>✅ TikTok</span> | <span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ FB</span> | <span>✅ Pinterest</span></div>
         
         <form id="form-ajax">
             <div class="input-group">
@@ -93,7 +91,7 @@ PAGINA_WEB = """
 
         <div id="pantalla-carga">
             <div class="spinner"></div>
-            <p style="color: var(--text-secondary); font-size: 14px;">Analizando enlace...</p>
+            <p style="color: var(--text-secondary); font-size: 14px;">Analizando enlace y burlando seguridad...</p>
         </div>
 
         <div id="resultado-dinamico"></div>
@@ -118,12 +116,10 @@ PAGINA_WEB = """
         const loader = document.getElementById('pantalla-carga');
         const contenedorResultado = document.getElementById('resultado-dinamico');
 
-        // Validación de enlace
         input.addEventListener('input', () => {
             btnGenerar.disabled = !input.value.trim().startsWith('http');
         });
 
-        // --- MEJORA 1: AJAX (FETCH API) ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             btnGenerar.style.display = 'none';
@@ -162,7 +158,6 @@ PAGINA_WEB = """
             }
         });
 
-        // Pegar del portapapeles
         document.getElementById('btn-pegar').addEventListener('click', async () => {
             try {
                 const text = await navigator.clipboard.readText();
@@ -171,7 +166,6 @@ PAGINA_WEB = """
             } catch(e) {}
         });
 
-        // Historial
         function guardarHistorial(titulo) {
             let hist = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
             hist.unshift({ titulo, fecha: new Date().toLocaleDateString() });
@@ -221,23 +215,29 @@ def procesar_enlace():
             info = ydl.extract_info(url, download=False)
             if 'entries' in info: info = info['entries'][0]
 
-            # --- MEJORA 3: SEGURIDAD (DURACIÓN Y PESO) ---
             duracion = info.get('duration', 0)
             if duracion > LIMITE_DURACION:
                 return jsonify({'status': 'error', 'message': 'El video supera los 20 minutos permitidos.'})
 
             d_url = info.get('url')
-            # Si es m3u8 o no tiene URL directa, preparamos para modo servidor
-            modo = 'servidor' if not d_url or '.m3u8' in d_url else 'directo'
+            url_minuscula = url.lower()
             
-            # Limpieza de datos para el cliente
+            # --- EL FIX DE TIKTOK ESTÁ AQUÍ ---
+            # Si es TikTok o no nos da la ruta directa, activamos Modo Servidor.
+            if not d_url or '.m3u8' in d_url or 'tiktok' in url_minuscula:
+                modo = 'servidor'
+                # Obligatoriamente le mandamos la URL ORIGINAL al descargador para que no pierda el "disfraz"
+                url_a_empaquetar = url
+            else:
+                modo = 'directo'
+                final_url = d_url if calidad != 'imagen' else info.get('thumbnail', '')
+                url_a_empaquetar = final_url if final_url else url
+            
             titulo = info.get('title', 'Video_Descargado')
             miniatura = info.get('thumbnail', '')
             ext = 'jpg' if calidad == 'imagen' else ('mp3' if calidad == 'audio' else 'mp4')
             
-            # Construcción de URL de descarga final
-            final_url = d_url if calidad != 'imagen' else miniatura
-            safe_url = urllib.parse.quote(final_url or url, safe='')
+            safe_url = urllib.parse.quote(url_a_empaquetar, safe='')
             safe_title = urllib.parse.quote(titulo, safe='')
             
             url_final_pdp = f"/descargar?url={safe_url}&titulo={safe_title}&ext={ext}&modo={modo}"
@@ -250,7 +250,7 @@ def procesar_enlace():
             })
 
     except Exception as e:
-        return jsonify({'status': 'error', 'message': 'Plataforma no soportada o perfil privado.'})
+        return jsonify({'status': 'error', 'message': 'Plataforma no soportada o enlace no válido.'})
 
 @app.route('/descargar')
 def descargar_archivo():
@@ -266,18 +266,29 @@ def descargar_archivo():
             "Content-Type": "application/octet-stream"
         })
     else:
-        # Modo Servidor (Temporal para HLS)
         temp_path = os.path.join(tempfile.gettempdir(), f"{titulo}.{ext}")
-        with yt_dlp.YoutubeDL({'outtmpl': temp_path, 'format': 'best', 'quiet': True}) as ydl:
+        opciones_bajada = {
+            'outtmpl': temp_path, 
+            'format': 'bestvideo+bestaudio/best', 
+            'quiet': True,
+            'nocheckcertificate': True
+        }
+        
+        # Aquí yt-dlp con curl_cffi procesa la URL original, burla a TikTok y descarga el MP4 real.
+        with yt_dlp.YoutubeDL(opciones_bajada) as ydl:
             ydl.download([video_url])
         
         def stream_and_remove():
-            with open(temp_path, 'rb') as f:
-                yield from f
-            if os.path.exists(temp_path): os.remove(temp_path)
+            if os.path.exists(temp_path):
+                with open(temp_path, 'rb') as f:
+                    yield from f
+                os.remove(temp_path)
+            else:
+                yield b"Hubo un error con la seguridad de la plataforma."
             
         return Response(stream_with_context(stream_and_remove()), headers={
-            "Content-Disposition": f'attachment; filename="{titulo}.{ext}"'
+            "Content-Disposition": f'attachment; filename="{titulo}.{ext}"',
+            "Content-Type": "application/octet-stream"
         })
 
 if __name__ == '__main__':
