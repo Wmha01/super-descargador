@@ -1,18 +1,18 @@
-# 1. Usamos una computadora base con Python moderno
+# Usamos una versión ligera de Python
 FROM python:3.11-slim
 
-# 2. Instalamos FFmpeg y Node.js en el sistema Linux
-RUN apt-get update && apt-get install -y ffmpeg nodejs
-
-# 3. Creamos una carpeta de trabajo en el servidor
+# Creamos nuestra carpeta de trabajo
 WORKDIR /app
 
-# 4. Copiamos nuestros archivos a la nube
-COPY requirements.txt .
-COPY servidor.py .
+# Instalamos FFmpeg (vital para unir video y audio en descargas pesadas)
+RUN apt-get update && apt-get install -y ffmpeg curl && rm -rf /var/lib/apt/lists/*
 
-# 5. Instalamos las librerías de Python
+# Copiamos primero los requerimientos y los instalamos
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 6. Encendemos el servidor
+# LA LÍNEA MÁGICA: Copia TODO tu repositorio (incluyendo la carpeta templates)
+COPY . .
+
+# Comando para encender el servidor
 CMD ["python", "servidor.py"]
