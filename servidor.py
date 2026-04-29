@@ -137,18 +137,17 @@ def inicio():
         url = request.form['enlace']
         calidad = request.form['calidad']
         
-        # --- EL FIX DE LOS FORMATOS (FALLBACKS) ---
-        # Si no encuentra 480p, bajará a buscar 'best' y si no, cualquier cosa ('b')
+        # --- SOLUCIÓN: FORZAR UN ARCHIVO ÚNICO CON VIDEO Y AUDIO ('b') ---
         f_map = {
-            'alta': 'bestvideo+bestaudio/best/b',
-            'media': 'best[height<=480]/bestvideo+bestaudio/best/b',
-            'baja': 'best[height<=360]/bestvideo+bestaudio/best/b',
-            'audio': 'bestaudio/best/b'
+            'alta': 'b',
+            'media': 'b[height<=480]/b',
+            'baja': 'b[height<=360]/b',
+            'audio': 'ba/b'
         }
         
         opciones = {
             'quiet': True,
-            'format': f_map.get(calidad, 'best/b'),
+            'format': f_map.get(calidad, 'b'),
             'skip_download': True,
             'nocheckcertificate': True,
             'ignoreerrors': True,
@@ -161,9 +160,14 @@ def inicio():
                 
                 if 'entries' in info:
                     info = info['entries'][0]
+                
+                # Búsqueda agresiva del enlace (Por si yt-dlp lo esconde)
+                d_url = info.get('url')
+                if not d_url and 'formats' in info and len(info['formats']) > 0:
+                    # Si no lo da directo, tomamos el último formato de la lista interna
+                    d_url = info['formats'][-1].get('url')
                     
-                d_url = info.get('url', None)
-                miniatura = info.get('thumbnail', None)
+                miniatura = info.get('thumbnail')
                 titulo_v = info.get('title', 'Video descargado')
                 
             if d_url:
