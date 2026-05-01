@@ -7,7 +7,6 @@
     <title>SnapDrop - Descarga Pro</title>
     <meta name="description" content="Descarga videos de TikTok, Instagram, X y más de forma rápida y segura.">
     <meta property="og:title" content="SnapDrop - Descarga Pro">
-    <meta property="og:description" content="Tu herramienta profesional para bajar contenido de redes sociales en segundos.">
     <meta property="og:type" content="website">
     <meta name="theme-color" content="#007AFF">
 
@@ -18,55 +17,34 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* MODO CLARO - Paleta Unificada */
-            --bg-body: #f4f6f8; 
-            --bg-card: #ffffff; 
-            --input-bg: #eef1f5; /* Más oscuro que la tarjeta para dar profundidad */
-            --text-main: #111827; 
-            --text-secondary: #6b7280; 
-            --border-color: #e5e7eb; 
-            --accent: #007AFF; /* Azul principal */
-            --accent-hover: #005bb5;
-            --btn-text: #ffffff; 
-            --box-shadow: 0 20px 40px rgba(0,0,0,0.04);
-            --danger: #ef4444;
+            --bg-body: #f4f6f8; --bg-card: #ffffff; --input-bg: #eef1f5; 
+            --text-main: #111827; --text-secondary: #6b7280; --border-color: #e5e7eb; 
+            --accent: #007AFF; --accent-hover: #005bb5; --btn-text: #ffffff; 
+            --box-shadow: 0 20px 40px rgba(0,0,0,0.04); --danger: #ef4444;
         }
         body.dark-mode {
-            /* MODO OSCURO - Paleta Unificada */
-            --bg-body: #0f0f11; 
-            --bg-card: #1a1a1c; 
-            --input-bg: #09090a; /* Hundimiento 3D: Input más oscuro que la tarjeta */
-            --text-main: #f9fafb; 
-            --text-secondary: #9ca3af; 
-            --border-color: #27272a; 
-            --accent: #007AFF; 
-            --accent-hover: #3395ff;
-            --box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            --bg-body: #0f0f11; --bg-card: #1a1a1c; --input-bg: #09090a; 
+            --text-main: #f9fafb; --text-secondary: #9ca3af; --border-color: #27272a; 
+            --accent: #007AFF; --accent-hover: #3395ff; --box-shadow: 0 20px 40px rgba(0,0,0,0.3);
         }
         
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 20px; transition: background-color 0.3s, color 0.3s; display: flex; justify-content: center; min-height: 100vh; align-items: flex-start; }
         
-        .contenedor { max-width: 460px; width: 100%; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border-color); box-shadow: var(--box-shadow); margin-top: 6vh; transition: 0.3s; }
+        .contenedor { max-width: 460px; width: 100%; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border-color); box-shadow: var(--box-shadow); margin-top: 6vh; transition: 0.3s; position: relative;}
         
         .brand { text-align: center; font-size: 34px; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 20px; }
         .brand span { color: var(--accent); }
         
-        /* Íconos SVG vectoriales (Mejora 2) */
         .redes-soportadas { display: flex; justify-content: center; gap: 16px; margin-bottom: 28px; }
         .redes-soportadas svg { width: 18px; height: 18px; fill: var(--text-secondary); transition: 0.2s ease; cursor: default; }
         .redes-soportadas svg:hover { fill: var(--accent); transform: scale(1.15) translateY(-2px); }
 
         .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
-        
-        /* Inputs con profundidad (Mejora 4) */
-        input, select { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); box-sizing: border-box; font-size: 15px; font-family: 'Inter', sans-serif; font-weight: 500; transition: all 0.2s; }
+        input, select { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); box-sizing: border-box; font-size: 15px; font-weight: 500; transition: all 0.2s; }
         input:focus, select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15); }
         
-        /* Botón con Identidad Visual (Mejora 3) */
         button.btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 600; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
-        /* Estado inactivo (Gris apagado) */
         button.btn-main:disabled { background: var(--input-bg); color: var(--text-secondary); border: 1px solid var(--border-color); cursor: not-allowed; }
-        /* Estado activo (Azul brillante) */
         button.btn-main:not(:disabled) { background: var(--accent); color: white; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3); }
         button.btn-main:not(:disabled):hover { background: var(--accent-hover); transform: translateY(-1px); }
         
@@ -90,26 +68,34 @@
         .historial-item span { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
         .historial-item small { color: var(--text-secondary); font-size: 12px; }
         
-        .theme-switcher-container { position: fixed; bottom: 25px; left: 25px; }
+        .theme-switcher-container { position: fixed; bottom: 25px; left: 25px; display: flex; gap: 15px; align-items: center; z-index: 1000;}
         .theme-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 46px; height: 46px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--box-shadow); transition: 0.3s; font-size: 18px; }
         .theme-btn:hover { transform: scale(1.05); border-color: var(--accent); }
+
+        /* 🔥 NUEVO: Botón de Instalación PWA */
+        #btn-install { display: none; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 0 20px; height: 46px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 14px; box-shadow: var(--box-shadow); transition: 0.3s; align-items: center; gap: 8px; }
+        #btn-install:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
+
+        /* 🔥 NUEVO: Sistema de Toasts */
+        .toast-container { position: fixed; top: 25px; right: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; }
+        .toast { background: var(--bg-card); color: var(--text-main); padding: 16px 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border-left: 4px solid var(--accent); font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 10px; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), fadeOut 0.4s ease 3.5s forwards; min-width: 250px; border: 1px solid var(--border-color); border-left: 4px solid var(--accent); }
+        .toast.error { border-left-color: var(--danger); }
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
     </style>
 </head>
 <body id="cuerpo">
+    <!-- 🔥 Contenedor de Notificaciones Flotantes -->
+    <div id="toast-container" class="toast-container"></div>
+
     <div class="contenedor">
         <div class="brand">Snap<span>Drop</span></div>
         
-        <!-- Íconos Minimalistas SVG (Reemplazando los Emojis) -->
         <div class="redes-soportadas">
-            <!-- TikTok -->
             <svg title="TikTok" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>
-            <!-- Instagram -->
             <svg title="Instagram" viewBox="0 0 24 24"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85C2.38 3.86 3.89 2.32 7.15 2.23c1.27-.06 1.64-.07 4.85-.07M12 0C8.74 0 8.33.01 7.05.07c-4.27.19-6.78 2.7-6.97 6.98C.01 8.33 0 8.74 0 12s.01 3.67.08 4.95c.19 4.28 2.7 6.79 6.97 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.08c4.28-.19 6.79-2.7 6.98-6.98C23.99 15.67 24 15.26 24 12s-.01-3.67-.08-4.95c-.19-4.28-2.7-6.79-6.98-6.97C15.67.01 15.26 0 12 0zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84zm0 10.16A4 4 0 1 1 16 12a4 4 0 0 1-4 4zm7.85-11.44a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0z"/></svg>
-            <!-- X (Twitter) -->
             <svg title="X" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            <!-- Facebook -->
             <svg title="Facebook" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-            <!-- Pinterest -->
             <svg title="Pinterest" viewBox="0 0 24 24"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.951-7.252 4.168 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.367 18.592 0 12.017 0z"/></svg>
         </div>
         
@@ -120,7 +106,6 @@
             </div>
             
             <select name="calidad" id="select-calidad">
-                <!-- Se mantienen estrictamente las opciones de calidad -->
                 <option value="alta">Video - Máxima Calidad</option>
                 <option value="media">Video - Calidad Media (Ahorro de datos)</option>
                 <option value="baja">Video - Calidad Baja (Descarga rápida)</option>
@@ -149,10 +134,51 @@
 
     <div class="theme-switcher-container">
         <button class="theme-btn" onclick="toggleDarkMode()" title="Cambiar tema">🌓</button>
+        <!-- Botón PWA flotante junto al selector de tema -->
+        <button id="btn-install" title="Instalar como Aplicación">📱 Instalar App</button>
     </div>
 
-    <!-- Se mantiene estrictamente el JavaScript funcional -->
     <script>
+        // --- 1. SISTEMA DE TOASTS ---
+        function mostrarToast(mensaje, esError = false) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${esError ? 'error' : ''}`;
+            toast.innerHTML = `<span style="font-size: 18px;">${esError ? '⚠️' : '✨'}</span> ${mensaje}`;
+            container.appendChild(toast);
+            
+            // Autodestrucción del toast después de que termine la animación
+            setTimeout(() => {
+                if(container.contains(toast)) { toast.remove(); }
+            }, 3900);
+        }
+
+        // --- 2. LÓGICA DE INSTALACIÓN PWA ---
+        let promptDiferido;
+        const btnInstalar = document.getElementById('btn-install');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Previene que aparezca el mini-banner predeterminado del navegador
+            e.preventDefault();
+            // Guarda el evento para dispararlo cuando el usuario haga clic
+            promptDiferido = e;
+            // Muestra nuestro botón personalizado
+            btnInstalar.style.display = 'flex';
+        });
+
+        btnInstalar.addEventListener('click', async () => {
+            if (promptDiferido) {
+                promptDiferido.prompt();
+                const { outcome } = await promptDiferido.userChoice;
+                if (outcome === 'accepted') {
+                    btnInstalar.style.display = 'none';
+                    mostrarToast('¡Gracias por instalar SnapDrop!');
+                }
+                promptDiferido = null;
+            }
+        });
+
+        // --- LÓGICA ORIGINAL DE LA APP ---
         const form = document.getElementById('form-ajax');
         const input = document.getElementById('input-enlace');
         const btnGenerar = document.getElementById('btn-generar');
@@ -199,14 +225,16 @@
                             <img src="${data.miniatura}" class="miniatura" onerror="this.style.display='none'">
                         </div>`;
                     guardarHistorial(data.titulo);
+                    mostrarToast('Medio procesado correctamente.'); // Usando el Toast de éxito
                 } else {
                     contenedorResultado.innerHTML = `<div class="resultado-card" style="border-color: var(--danger); color: var(--danger);">⚠️ ${data.message}</div>`;
+                    mostrarToast(data.message, true); // Usando el Toast de error
                 }
             } catch (error) { 
                 pCont.style.display = 'none';
                 status.style.display = 'none';
                 btnGenerar.style.display = 'block';
-                alert('Error de conexión.'); 
+                mostrarToast('Error de conexión con el servidor.', true); // Reemplazamos el alert()
             }
         });
 
@@ -228,10 +256,17 @@
             try { 
                 input.value = await navigator.clipboard.readText(); 
                 btnGenerar.disabled = !input.value.trim().startsWith('http');
-            } catch(e) {} 
+                if(input.value) mostrarToast('Enlace pegado del portapapeles');
+            } catch(e) {
+                mostrarToast('No se pudo acceder al portapapeles', true);
+            } 
         };
         
-        document.getElementById('btn-limpiar').onclick = () => { localStorage.removeItem('pdp_historial'); renderHistorial(); };
+        document.getElementById('btn-limpiar').onclick = () => { 
+            localStorage.removeItem('pdp_historial'); 
+            renderHistorial(); 
+            mostrarToast('Historial limpiado');
+        };
         
         function toggleDarkMode() { 
             document.body.classList.toggle('dark-mode'); 
