@@ -139,7 +139,9 @@ def descargar_archivo():
             "Content-Type": "application/octet-stream"
         })
     else:
-        temp_path = os.path.join(tempfile.gettempdir(), f"{titulo}.{ext}")
+        # MAGIA: Le decimos que use el nombre base, pero deje la extensión dinámica hasta el final
+        temp_path_base = os.path.join(tempfile.gettempdir(), titulo)
+        expected_file = f"{temp_path_base}.{ext}"
         
         def hook(d):
             if d['status'] == 'downloading':
@@ -156,13 +158,44 @@ def descargar_archivo():
             formato_bajada = 'bestvideo[height<=360]+bestaudio/best[height<=360]/best'
 
         opciones_bajada = {
-            'outtmpl': temp_path, 
+            'outtmpl': f"{temp_path_base}.%(ext)s", # Esto evita que yt-dlp se confunda
             'format': formato_bajada, 
             'quiet': True,
             'nocheckcertificate': True,
             'progress_hooks': [hook]
         }
         
+        # OBLIGAMOS LA CONVERSIÓN ESTRICTA CON FFMPEG
+        if ext == 'mp3':
+            opciones_bajada['postprocessors'] = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }]
+        else: # Si es video, forzamos MP4
+            opciones_bajada['merge_output_format'] = 'mp4'
+            opciones_bajada['postprocessors'] = [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4'
+            }]
+        
+        with yt_dlp.YoutubeDL(opciones_bajada) as ydl:
+            ydl.download([video_url])
+        
+        def stream_and_remove():
+            try:
+                # Ahora sí, el archivo existirá 100% seguro en el formato que pedimos
+                with open(expected_file, 'rb') as f:
+                    yield from f
+            finally:
+                if os.path.exists(expected_file):
+                    os.remove(expected_file)
+            
+        return Response(stream_with_context(stream_and_remove()), headers={
+            "Content-Disposition": f'attachment; filename="{titulo}.{ext}"',
+            "Content-Type": "application/octet-stream"
+        })
+                
         # Conversión de audio estricta usando FFmpeg
         if calidad == 'audio':
             opciones_bajada['postprocessors'] = [{
