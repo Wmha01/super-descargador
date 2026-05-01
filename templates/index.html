@@ -8,67 +8,119 @@
     <meta name="description" content="Descarga videos de TikTok, Instagram, X y más de forma rápida y segura.">
     <meta property="og:title" content="SnapDrop - Descarga Pro">
     <meta property="og:description" content="Tu herramienta profesional para bajar contenido de redes sociales en segundos.">
-    <meta property="og:image" content="https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop">
     <meta property="og:type" content="website">
-    <meta name="theme-color" content="#28a745">
+    <meta name="theme-color" content="#007AFF">
 
     <link rel="manifest" href="/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3041/3041913.png">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Asegúrate de cambiar estos colores por los colores institucionales para el diseño de tu proyecto */
-            --bg-body: #f4f7f6; --bg-card: #ffffff; --text-main: #1a1a1a; --text-secondary: #6c757d; 
-            --border-color: #e9ecef; --accent: #007AFF; --btn-bg: #1a1a1a; --btn-text: #ffffff; 
-            --box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            /* MODO CLARO - Paleta Unificada */
+            --bg-body: #f4f6f8; 
+            --bg-card: #ffffff; 
+            --input-bg: #eef1f5; /* Más oscuro que la tarjeta para dar profundidad */
+            --text-main: #111827; 
+            --text-secondary: #6b7280; 
+            --border-color: #e5e7eb; 
+            --accent: #007AFF; /* Azul principal */
+            --accent-hover: #005bb5;
+            --btn-text: #ffffff; 
+            --box-shadow: 0 20px 40px rgba(0,0,0,0.04);
+            --danger: #ef4444;
         }
         body.dark-mode {
-            --bg-body: #121212; --bg-card: #1e1e1e; --text-main: #e0e0e0; --text-secondary: #a0a0a0; 
-            --border-color: #333333; --btn-bg: #f8f9fa; --btn-text: #1a1a1a; --box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            /* MODO OSCURO - Paleta Unificada */
+            --bg-body: #0f0f11; 
+            --bg-card: #1a1a1c; 
+            --input-bg: #09090a; /* Hundimiento 3D: Input más oscuro que la tarjeta */
+            --text-main: #f9fafb; 
+            --text-secondary: #9ca3af; 
+            --border-color: #27272a; 
+            --accent: #007AFF; 
+            --accent-hover: #3395ff;
+            --box-shadow: 0 20px 40px rgba(0,0,0,0.3);
         }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 20px; transition: 0.3s; display: flex; justify-content: center; min-height: 100vh; align-items: flex-start; }
-        .contenedor { max-width: 480px; width: 100%; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border-color); box-shadow: var(--box-shadow); margin-top: 6vh; }
-        .brand { text-align: center; font-size: 32px; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 25px; }
+        
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; padding: 20px; transition: background-color 0.3s, color 0.3s; display: flex; justify-content: center; min-height: 100vh; align-items: flex-start; }
+        
+        .contenedor { max-width: 460px; width: 100%; background: var(--bg-card); padding: 40px; border-radius: 24px; border: 1px solid var(--border-color); box-shadow: var(--box-shadow); margin-top: 6vh; transition: 0.3s; }
+        
+        .brand { text-align: center; font-size: 34px; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 20px; }
         .brand span { color: var(--accent); }
-        .redes-soportadas { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 18px; text-align: center; font-weight: 600; }
-        .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
-        input, select { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--bg-body); color: var(--text-main); box-sizing: border-box; font-size: 16px; transition: 0.2s; }
-        input:focus { border-color: var(--accent); outline: none; }
-        button.btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; background: var(--btn-bg); color: var(--btn-text); font-weight: 600; cursor: pointer; font-size: 16px; transition: 0.3s; }
-        button.btn-main:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn-pegar { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 14px; padding: 0 16px; cursor: pointer; }
         
-        .progress-container { width: 100%; background: var(--bg-body); border: 1px solid var(--border-color); height: 12px; border-radius: 10px; margin-top: 20px; display: none; overflow: hidden; }
-        .progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease; }
-        #status-text { font-size: 14px; color: var(--text-secondary); margin-top: 10px; display: none; text-align: center; font-weight: 600; }
+        /* Íconos SVG vectoriales (Mejora 2) */
+        .redes-soportadas { display: flex; justify-content: center; gap: 16px; margin-bottom: 28px; }
+        .redes-soportadas svg { width: 18px; height: 18px; fill: var(--text-secondary); transition: 0.2s ease; cursor: default; }
+        .redes-soportadas svg:hover { fill: var(--accent); transform: scale(1.15) translateY(-2px); }
 
-        #resultado-dinamico { margin-top: 30px; display: none; }
-        .resultado-card { padding: 25px; border-radius: 18px; background: var(--bg-body); border: 1px solid var(--border-color); text-align: center; }
-        .miniatura { width: 100%; border-radius: 14px; margin-top: 15px; object-fit: cover; max-height: 200px;}
-        .btn-descarga { display: block; margin-top: 20px; background: var(--accent); color: white; padding: 14px; text-decoration: none; border-radius: 12px; font-weight: 600; }
+        .input-group { display: flex; gap: 8px; margin-bottom: 15px; }
         
-        .historial { margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 20px; }
-        .historial-item { padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; display: flex; justify-content: space-between; }
+        /* Inputs con profundidad (Mejora 4) */
+        input, select { width: 100%; padding: 16px; margin-bottom: 15px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main); box-sizing: border-box; font-size: 15px; font-family: 'Inter', sans-serif; font-weight: 500; transition: all 0.2s; }
+        input:focus, select:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15); }
+        
+        /* Botón con Identidad Visual (Mejora 3) */
+        button.btn-main { width: 100%; padding: 16px; border: none; border-radius: 14px; font-weight: 600; cursor: pointer; font-size: 16px; transition: all 0.3s ease; }
+        /* Estado inactivo (Gris apagado) */
+        button.btn-main:disabled { background: var(--input-bg); color: var(--text-secondary); border: 1px solid var(--border-color); cursor: not-allowed; }
+        /* Estado activo (Azul brillante) */
+        button.btn-main:not(:disabled) { background: var(--accent); color: white; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.3); }
+        button.btn-main:not(:disabled):hover { background: var(--accent-hover); transform: translateY(-1px); }
+        
+        .btn-pegar { background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 14px; padding: 0 18px; cursor: pointer; transition: 0.2s; }
+        .btn-pegar:hover { border-color: var(--accent); color: var(--accent); }
+        
+        .progress-container { width: 100%; background: var(--input-bg); border: 1px solid var(--border-color); height: 10px; border-radius: 10px; margin-top: 20px; display: none; overflow: hidden; }
+        .progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease; }
+        #status-text { font-size: 13px; color: var(--text-secondary); margin-top: 10px; display: none; text-align: center; font-weight: 600; }
+
+        #resultado-dinamico { margin-top: 30px; display: none; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .resultado-card { padding: 25px; border-radius: 18px; background: var(--input-bg); border: 1px solid var(--border-color); text-align: center; }
+        .miniatura { width: 100%; border-radius: 12px; margin-top: 15px; object-fit: cover; max-height: 220px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .btn-descarga { display: block; margin-top: 20px; background: var(--accent); color: white; padding: 14px; text-decoration: none; border-radius: 12px; font-weight: 600; transition: 0.2s; }
+        .btn-descarga:hover { background: var(--accent-hover); }
+        
+        .historial { margin-top: 40px; border-top: 1px solid var(--border-color); padding-top: 25px; }
+        .historial-item { padding: 14px 0; border-bottom: 1px solid var(--border-color); font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .historial-item span { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
+        .historial-item small { color: var(--text-secondary); font-size: 12px; }
+        
         .theme-switcher-container { position: fixed; bottom: 25px; left: 25px; }
-        .theme-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .theme-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 46px; height: 46px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--box-shadow); transition: 0.3s; font-size: 18px; }
+        .theme-btn:hover { transform: scale(1.05); border-color: var(--accent); }
     </style>
 </head>
 <body id="cuerpo">
     <div class="contenedor">
         <div class="brand">Snap<span>Drop</span></div>
-        <div class="redes-soportadas"><span>✅ TikTok</span> | <span>✅ Instagram</span> | <span>✅ X</span> | <span>✅ FB</span> | <span>✅ Pinterest</span></div>
+        
+        <!-- Íconos Minimalistas SVG (Reemplazando los Emojis) -->
+        <div class="redes-soportadas">
+            <!-- TikTok -->
+            <svg title="TikTok" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>
+            <!-- Instagram -->
+            <svg title="Instagram" viewBox="0 0 24 24"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85C2.38 3.86 3.89 2.32 7.15 2.23c1.27-.06 1.64-.07 4.85-.07M12 0C8.74 0 8.33.01 7.05.07c-4.27.19-6.78 2.7-6.97 6.98C.01 8.33 0 8.74 0 12s.01 3.67.08 4.95c.19 4.28 2.7 6.79 6.97 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.08c4.28-.19 6.79-2.7 6.98-6.98C23.99 15.67 24 15.26 24 12s-.01-3.67-.08-4.95c-.19-4.28-2.7-6.79-6.98-6.97C15.67.01 15.26 0 12 0zm0 5.84A6.16 6.16 0 1 0 18.16 12 6.16 6.16 0 0 0 12 5.84zm0 10.16A4 4 0 1 1 16 12a4 4 0 0 1-4 4zm7.85-11.44a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0z"/></svg>
+            <!-- X (Twitter) -->
+            <svg title="X" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            <!-- Facebook -->
+            <svg title="Facebook" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            <!-- Pinterest -->
+            <svg title="Pinterest" viewBox="0 0 24 24"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.663.967-2.911 2.168-2.911 1.024 0 1.518.769 1.518 1.688 0 1.029-.653 2.567-.992 3.992-.285 1.193.6 2.165 1.775 2.165 2.128 0 3.768-2.245 3.768-5.487 0-2.861-2.063-4.869-5.008-4.869-3.41 0-5.409 2.562-5.409 5.199 0 1.033.394 2.143.889 2.741.099.12.112.225.085.345-.09.375-.293 1.199-.334 1.363-.053.225-.172.271-.401.165-1.495-.69-2.433-2.878-2.433-4.646 0-3.776 2.748-7.252 7.951-7.252 4.168 0 7.392 2.967 7.392 6.923 0 4.135-2.607 7.462-6.233 7.462-1.214 0-2.354-.629-2.758-1.379l-.749 2.848c-.269 1.045-1.004 2.352-1.498 3.146 1.123.345 2.306.535 3.55.535 6.607 0 11.985-5.365 11.985-11.987C23.97 5.367 18.592 0 12.017 0z"/></svg>
+        </div>
         
         <form id="form-ajax">
             <div class="input-group">
                 <input type="url" id="input-enlace" name="enlace" placeholder="Pega el enlace aquí..." required autocomplete="off">
-                <button type="button" class="btn-pegar" id="btn-pegar">📋</button>
+                <button type="button" class="btn-pegar" id="btn-pegar" title="Pegar del portapapeles">📋</button>
             </div>
             
-            <!-- SELECTOR DE CALIDAD ACTUALIZADO -->
             <select name="calidad" id="select-calidad">
+                <!-- Se mantienen estrictamente las opciones de calidad -->
                 <option value="alta">Video - Máxima Calidad</option>
                 <option value="media">Video - Calidad Media (Ahorro de datos)</option>
                 <option value="baja">Video - Calidad Baja (Descarga rápida)</option>
@@ -87,18 +139,19 @@
         <div id="resultado-dinamico"></div>
 
         <div class="historial">
-            <div class="historial-header" style="display:flex; justify-content:space-between;">
-                <h2 style="font-size: 16px; color: var(--text-secondary); margin: 0;">Recientes</h2>
-                <button id="btn-limpiar" style="background:none; border:none; color:#dc3545; cursor:pointer; font-weight:600; font-size: 13px;">🗑️ Limpiar</button>
+            <div class="historial-header" style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 10px;">
+                <h2 style="font-size: 14px; font-weight: 600; color: var(--text-secondary); margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Recientes</h2>
+                <button id="btn-limpiar" style="background:none; border:none; color:var(--danger); cursor:pointer; font-weight:600; font-size: 13px; transition: 0.2s;">🗑️ Limpiar</button>
             </div>
             <ul id="lista-historial" style="list-style:none; padding:0; margin: 0;"></ul>
         </div>
     </div>
 
     <div class="theme-switcher-container">
-        <button class="theme-btn" onclick="toggleDarkMode()">🌓</button>
+        <button class="theme-btn" onclick="toggleDarkMode()" title="Cambiar tema">🌓</button>
     </div>
 
+    <!-- Se mantiene estrictamente el JavaScript funcional -->
     <script>
         const form = document.getElementById('form-ajax');
         const input = document.getElementById('input-enlace');
@@ -141,13 +194,13 @@
                 if (data.status === 'success') {
                     contenedorResultado.innerHTML = `
                         <div class="resultado-card">
-                            <p>✨ ¡Listo!</p>
+                            <p style="margin-top:0; font-weight: 600; color: var(--text-main);">✨ ¡Listo!</p>
                             <a href="${data.url_descarga}" class="btn-descarga">Descargar Ahora</a>
-                            <img src="${data.miniatura}" class="miniatura">
+                            <img src="${data.miniatura}" class="miniatura" onerror="this.style.display='none'">
                         </div>`;
                     guardarHistorial(data.titulo);
                 } else {
-                    contenedorResultado.innerHTML = `<div class="resultado-card" style="border-color: #dc3545; color: #dc3545;">⚠️ ${data.message}</div>`;
+                    contenedorResultado.innerHTML = `<div class="resultado-card" style="border-color: var(--danger); color: var(--danger);">⚠️ ${data.message}</div>`;
                 }
             } catch (error) { 
                 pCont.style.display = 'none';
@@ -167,12 +220,15 @@
         function renderHistorial() {
             const lista = document.getElementById('lista-historial');
             const data = JSON.parse(localStorage.getItem('pdp_historial') || '[]');
-            lista.innerHTML = data.length ? '' : '<li style="text-align:center; color:gray; font-size:13px;">No hay descargas</li>';
+            lista.innerHTML = data.length ? '' : '<li style="text-align:center; color:var(--text-secondary); font-size:13px; padding: 15px 0;">No hay descargas recientes</li>';
             data.forEach(i => { lista.innerHTML += `<li class="historial-item"><span>${i.titulo}</span><small>${i.fecha}</small></li>`; });
         }
 
         document.getElementById('btn-pegar').onclick = async () => { 
-            try { input.value = await navigator.clipboard.readText(); btnGenerar.disabled = false; } catch(e) {} 
+            try { 
+                input.value = await navigator.clipboard.readText(); 
+                btnGenerar.disabled = !input.value.trim().startsWith('http');
+            } catch(e) {} 
         };
         
         document.getElementById('btn-limpiar').onclick = () => { localStorage.removeItem('pdp_historial'); renderHistorial(); };
