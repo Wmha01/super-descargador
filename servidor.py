@@ -37,14 +37,17 @@ def index():
 # ==========================================
 @app.route('/progreso')
 def progreso():
+    # CURA 1: Capturamos la IP aquí afuera, donde Flask mantiene el contexto seguro.
+    usuario_ip = get_remote_address()
+    
     def generar():
-        usuario_ip = get_remote_address()
         while True:
             p = progreso_usuarios.get(usuario_ip, 0)
             yield f"data: {json.dumps({'porcentaje': p})}\n\n"
             if p >= 100: 
                 break
             time.sleep(0.5)
+            
     return Response(generar(), mimetype='text/event-stream')
 
 # ==========================================
@@ -58,6 +61,12 @@ def procesar_enlace():
     usuario_ip = get_remote_address()
     
     progreso_usuarios[usuario_ip] = 10 
+    
+    # CURA 2: EL HACK PARA TIKTOK (Limpia rastreadores y disfraza fotos)
+    if url and 'tiktok.com' in url:
+        url = url.split('?')[0]
+        if '/photo/' in url:
+            url = url.replace('/photo/', '/video/')
     
     # Selector de calidad dinámico
     formato_extraccion = 'best'
@@ -137,7 +146,7 @@ def procesar_enlace():
             })
 
     except Exception as e:
-        print(f"Error interno (Ignorar si es por privacidad): {e}")
+        print(f"Error interno: {e}")
         progreso_usuarios[usuario_ip] = 100
         return jsonify({'status': 'error', 'message': 'Plataforma no soportada, enlace privado o post irreconocible.'})
 
