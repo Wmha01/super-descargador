@@ -4,11 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <title>SnapDrop - Descarga Pro</title>
-    <meta name="description" content="Descarga videos de TikTok, Instagram, X y más de forma rápida y segura.">
-    <meta property="og:title" content="SnapDrop - Descarga Pro">
-    <meta property="og:type" content="website">
+    <!-- 🔥 METADATOS Y OPEN GRAPH ACTUALIZADOS -->
+    <title>SnapDrop | Descargador Minimalista</title>
+    <meta name="description" content="Descarga videos, audios e imágenes de tus redes sociales favoritas al instante y sin complicaciones.">
     <meta name="theme-color" content="#007AFF">
+
+    <!-- Open Graph (La tarjeta que sale en WhatsApp, Telegram, etc.) -->
+    <meta property="og:title" content="SnapDrop | Descargador Universal">
+    <meta property="og:description" content="Guarda contenido de TikTok, Instagram, X y Pinterest. Calidad original, rápido y sin marcas de agua.">
+    <meta property="og:url" content="https://mi-descargadorxd.onrender.com/">
+    <meta property="og:type" content="website">
+    <!-- Imagen de Portada Abstracta Minimalista -->
+    <meta property="og:image" content="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop">
 
     <link rel="manifest" href="/static/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -72,20 +79,17 @@
         .theme-btn { background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); width: 46px; height: 46px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: var(--box-shadow); transition: 0.3s; font-size: 18px; }
         .theme-btn:hover { transform: scale(1.05); border-color: var(--accent); }
 
-        /* 🔥 NUEVO: Botón de Instalación PWA */
         #btn-install { display: none; background: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-main); padding: 0 20px; height: 46px; border-radius: 25px; cursor: pointer; font-weight: 600; font-size: 14px; box-shadow: var(--box-shadow); transition: 0.3s; align-items: center; gap: 8px; }
         #btn-install:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }
 
-        /* 🔥 NUEVO: Sistema de Toasts */
         .toast-container { position: fixed; top: 25px; right: 25px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; }
-        .toast { background: var(--bg-card); color: var(--text-main); padding: 16px 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border-left: 4px solid var(--accent); font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 10px; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), fadeOut 0.4s ease 3.5s forwards; min-width: 250px; border: 1px solid var(--border-color); border-left: 4px solid var(--accent); }
+        .toast { background: var(--bg-card); color: var(--text-main); padding: 16px 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); border-left: 4px solid var(--accent); font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 10px; animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), fadeOut 0.4s ease 3.5s forwards; min-width: 250px; border: 1px solid var(--border-color); }
         .toast.error { border-left-color: var(--danger); }
         @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
     </style>
 </head>
 <body id="cuerpo">
-    <!-- 🔥 Contenedor de Notificaciones Flotantes -->
     <div id="toast-container" class="toast-container"></div>
 
     <div class="contenedor">
@@ -134,12 +138,10 @@
 
     <div class="theme-switcher-container">
         <button class="theme-btn" onclick="toggleDarkMode()" title="Cambiar tema">🌓</button>
-        <!-- Botón PWA flotante junto al selector de tema -->
         <button id="btn-install" title="Instalar como Aplicación">📱 Instalar App</button>
     </div>
 
     <script>
-        // --- 1. SISTEMA DE TOASTS ---
         function mostrarToast(mensaje, esError = false) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -147,22 +149,17 @@
             toast.innerHTML = `<span style="font-size: 18px;">${esError ? '⚠️' : '✨'}</span> ${mensaje}`;
             container.appendChild(toast);
             
-            // Autodestrucción del toast después de que termine la animación
             setTimeout(() => {
                 if(container.contains(toast)) { toast.remove(); }
             }, 3900);
         }
 
-        // --- 2. LÓGICA DE INSTALACIÓN PWA ---
         let promptDiferido;
         const btnInstalar = document.getElementById('btn-install');
 
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Previene que aparezca el mini-banner predeterminado del navegador
             e.preventDefault();
-            // Guarda el evento para dispararlo cuando el usuario haga clic
             promptDiferido = e;
-            // Muestra nuestro botón personalizado
             btnInstalar.style.display = 'flex';
         });
 
@@ -178,7 +175,6 @@
             }
         });
 
-        // --- LÓGICA ORIGINAL DE LA APP ---
         const form = document.getElementById('form-ajax');
         const input = document.getElementById('input-enlace');
         const btnGenerar = document.getElementById('btn-generar');
@@ -225,16 +221,16 @@
                             <img src="${data.miniatura}" class="miniatura" onerror="this.style.display='none'">
                         </div>`;
                     guardarHistorial(data.titulo);
-                    mostrarToast('Medio procesado correctamente.'); // Usando el Toast de éxito
+                    mostrarToast('Medio procesado correctamente.'); 
                 } else {
                     contenedorResultado.innerHTML = `<div class="resultado-card" style="border-color: var(--danger); color: var(--danger);">⚠️ ${data.message}</div>`;
-                    mostrarToast(data.message, true); // Usando el Toast de error
+                    mostrarToast(data.message, true); 
                 }
             } catch (error) { 
                 pCont.style.display = 'none';
                 status.style.display = 'none';
                 btnGenerar.style.display = 'block';
-                mostrarToast('Error de conexión con el servidor.', true); // Reemplazamos el alert()
+                mostrarToast('Error de conexión con el servidor.', true); 
             }
         });
 
